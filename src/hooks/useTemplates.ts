@@ -11,7 +11,7 @@ export function useTemplates() {
     queryFn: () => templatesApi.list({ isActive: true }),
     staleTime: FIVE_MINUTES,
     gcTime: TWENTY_FOUR_HOURS,
-    select: (response) => response.data,
+    select: (response) => Array.isArray(response.data) ? response.data : [],
   });
 
   const defaultTemplate = query.data?.find((t) => t.isDefault) ?? null;

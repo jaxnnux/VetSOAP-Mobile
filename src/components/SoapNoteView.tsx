@@ -68,11 +68,15 @@ function AccordionSection({
   }));
 
   const copySection = async () => {
-    await copyWithAutoClear(content);
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    setShowCopied(true);
-    clearTimeout(copyTimeoutRef.current);
-    copyTimeoutRef.current = setTimeout(() => setShowCopied(false), 1500);
+    try {
+      await copyWithAutoClear(content ?? '');
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+      setShowCopied(true);
+      clearTimeout(copyTimeoutRef.current);
+      copyTimeoutRef.current = setTimeout(() => setShowCopied(false), 1500);
+    } catch (error) {
+      console.error('[SoapNote] copySection failed:', error);
+    }
   };
 
   return (
@@ -106,7 +110,7 @@ function AccordionSection({
             className="text-body text-stone-700 mt-2 leading-relaxed"
             selectable
           >
-            {content}
+            {content ?? ''}
           </Text>
           <Pressable
             onPress={copySection}
@@ -133,16 +137,20 @@ export function SoapNoteView({ soapNote }: SoapNoteViewProps) {
   }, []);
 
   const copyAll = useCallback(async () => {
-    const fullNote = SECTIONS.map(({ key, label }) => {
-      const section = soapNote[key];
-      return `${label.toUpperCase()}:\n${section?.content ?? ''}`;
-    }).join('\n\n');
+    try {
+      const fullNote = SECTIONS.map(({ key, label }) => {
+        const section = soapNote[key];
+        return `${label.toUpperCase()}:\n${section?.content ?? ''}`;
+      }).join('\n\n');
 
-    await copyWithAutoClear(fullNote);
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    setShowCopiedAll(true);
-    clearTimeout(copyAllTimeoutRef.current);
-    copyAllTimeoutRef.current = setTimeout(() => setShowCopiedAll(false), 1500);
+      await copyWithAutoClear(fullNote);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+      setShowCopiedAll(true);
+      clearTimeout(copyAllTimeoutRef.current);
+      copyAllTimeoutRef.current = setTimeout(() => setShowCopiedAll(false), 1500);
+    } catch (error) {
+      console.error('[SoapNote] copyAll failed:', error);
+    }
   }, [soapNote]);
 
   return (

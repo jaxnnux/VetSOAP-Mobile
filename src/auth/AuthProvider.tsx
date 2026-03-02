@@ -30,12 +30,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
 
   const fetchUser = useCallback(async (accessToken: string) => {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 15_000);
     try {
       const response = await fetch(`${API_URL}/auth/me`, {
         headers: {
           Authorization: `Bearer ${accessToken}`,
           'Content-Type': 'application/json',
         },
+        signal: controller.signal,
       });
       if (response.ok) {
         const { user } = await response.json();
@@ -43,11 +46,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     } catch {
       // User fetch failed — will retry on next session event
+    } finally {
+      clearTimeout(timeout);
     }
   }, []);
 
   const handleSignOut = useCallback(async () => {
-    await supabase.auth.signOut();
+    try {
+      await supabase.auth.signOut();
+    } catch (error) {
+      console.error('[Auth] supabase.auth.signOut failed:', error);
+    }
     await secureStorage.clearAll();
     setUser(null);
     setSession(null);
@@ -56,7 +65,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // Register the 401 handler so expired tokens redirect to login
   useEffect(() => {
     apiClient.setOnUnauthorized(() => {
-      handleSignOut();
+      handleSignOut().catch((error) => {
+        console.error('[Auth] signOut from 401 handler failed:', error);
+      });
     });
   }, [handleSignOut]);
 
@@ -66,29 +77,36 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (existingSession) {
         setSession(existingSession);
         if (existingSession.access_token) {
-          secureStorage.setToken(existingSession.access_token);
-          fetchUser(existingSession.access_token);
+          secureStorage.setToken(existingSession.access_token).catch(() => {});
+          fetchUser(existingSession.access_token).catch(() => {});
         }
       }
+    }).catch((error) => {
+      console.error('[Auth] Failed to restore session:', error);
+    }).finally(() => {
       setIsLoading(false);
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (_event, newSession) => {
-        setSession(newSession);
+        try {
+          setSession(newSession);
 
-        if (newSession?.access_token) {
-          await secureStorage.setToken(newSession.access_token);
-          if (newSession.refresh_token) {
-            await secureStorage.setRefreshToken(newSession.refresh_token);
+          if (newSession?.access_token) {
+            await secureStorage.setToken(newSession.access_token);
+            if (newSession.refresh_token) {
+              await secureStorage.setRefreshToken(newSession.refresh_token);
+            }
+            await fetchUser(newSession.access_token);
+          } else {
+            await secureStorage.clearAll();
+            setUser(null);
           }
-          await fetchUser(newSession.access_token);
-        } else {
-          await secureStorage.clearAll();
-          setUser(null);
+        } catch (error) {
+          console.error('[Auth] onAuthStateChange error:', error);
+        } finally {
+          setIsLoading(false);
         }
-
-        setIsLoading(false);
       }
     );
 

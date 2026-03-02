@@ -56,9 +56,6 @@ export class ApiClient {
       if (qs) url += `?${qs}`;
     }
 
-    // Validate the request targets a trusted domain over HTTPS
-    validateRequestUrl(url);
-
     const serializedBody = body ? JSON.stringify(body) : undefined;
     const authHeaders = await this.getAuthHeaders();
     const signingHeaders = await getSigningHeaders(method, path, serializedBody);
@@ -66,6 +63,9 @@ export class ApiClient {
     const timeout = setTimeout(() => controller.abort(), timeoutMs);
 
     try {
+      // Validate the request targets a trusted domain over HTTPS
+      validateRequestUrl(url);
+
       const response = await fetch(url, {
         method,
         headers: {
@@ -82,7 +82,8 @@ export class ApiClient {
           this.onUnauthorized?.();
         }
 
-        const errorBody = await response.json().catch(() => ({}));
+        const errorBody = await response.json().catch(() => ({})) ?? {};
+        const details = Array.isArray(errorBody.details) ? errorBody.details : [];
 
         // In production, use generic messages for server errors to avoid
         // leaking internal implementation details to the client.
@@ -90,8 +91,8 @@ export class ApiClient {
         if (__DEV__) {
           message =
             errorBody.error ||
-            (errorBody.details?.length
-              ? errorBody.details.map((d: { message: string }) => d.message).join(', ')
+            (details.length
+              ? details.map((d: { message: string }) => d.message).join(', ')
               : `Request failed: ${response.status}`);
         } else if (response.status === 401) {
           message = 'Your session has expired. Please sign in again.';
@@ -99,9 +100,9 @@ export class ApiClient {
           message = 'You do not have permission to perform this action.';
         } else if (response.status === 404) {
           message = 'The requested resource was not found.';
-        } else if (response.status === 422 && errorBody.details?.length) {
+        } else if (response.status === 422 && details.length) {
           // Validation errors are safe to show
-          message = errorBody.details.map((d: { message: string }) => d.message).join(', ');
+          message = details.map((d: { message: string }) => d.message).join(', ');
         } else if (response.status === 429) {
           message = 'Too many requests. Please try again shortly.';
         } else if (response.status >= 500) {
@@ -114,7 +115,7 @@ export class ApiClient {
           message,
           response.status,
           response.status === 429 || response.status >= 500,
-          __DEV__ ? errorBody.details : undefined
+          __DEV__ ? details : undefined
         );
       }
 

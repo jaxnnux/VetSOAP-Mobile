@@ -52,7 +52,7 @@ export function useAudioRecorder(): UseAudioRecorderReturn {
   useEffect(() => {
     Audio.requestPermissionsAsync().then(({ granted }) => {
       setPermissionGranted(granted);
-    });
+    }).catch(() => {});
   }, []);
 
   const start = useCallback(async () => {
@@ -102,7 +102,11 @@ export function useAudioRecorder(): UseAudioRecorderReturn {
 
   const stop = useCallback(async () => {
     if (recordingRef.current) {
-      await recordingRef.current.stopAndUnloadAsync();
+      try {
+        await recordingRef.current.stopAndUnloadAsync();
+      } catch (error) {
+        console.error('[AudioRecorder] stopAndUnloadAsync failed:', error);
+      }
       const uri = recordingRef.current.getURI();
       setAudioUri(uri);
       recordingRef.current = null;
@@ -125,6 +129,7 @@ export function useAudioRecorder(): UseAudioRecorderReturn {
   useEffect(() => {
     return () => {
       if (recordingRef.current) {
+        recordingRef.current.setOnRecordingStatusUpdate(null);
         recordingRef.current.stopAndUnloadAsync().catch(() => {});
       }
     };

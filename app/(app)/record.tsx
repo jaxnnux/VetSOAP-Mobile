@@ -99,7 +99,7 @@ export default function RecordScreen() {
       return recordingsApi.createWithFile(formData, recorder.audioUri, recorder.mimeType);
     },
     onSuccess: (recording) => {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
       queryClient.invalidateQueries({ queryKey: ['recordings'] });
       recorder.reset();
       setFormData({
@@ -137,7 +137,7 @@ export default function RecordScreen() {
 
   const handleStart = async () => {
     try {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy).catch(() => {});
       await recorder.start();
     } catch (error) {
       Alert.alert(
@@ -147,19 +147,31 @@ export default function RecordScreen() {
     }
   };
 
-  const handlePause = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    recorder.pause();
+  const handlePause = async () => {
+    try {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+      await recorder.pause();
+    } catch {
+      Alert.alert('Recording Error', 'Failed to pause recording.');
+    }
   };
 
-  const handleResume = () => {
-    Haptics.selectionAsync();
-    recorder.resume();
+  const handleResume = async () => {
+    try {
+      Haptics.selectionAsync().catch(() => {});
+      await recorder.resume();
+    } catch {
+      Alert.alert('Recording Error', 'Failed to resume recording.');
+    }
   };
 
-  const handleStop = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    recorder.stop();
+  const handleStop = async () => {
+    try {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+      await recorder.stop();
+    } catch {
+      Alert.alert('Recording Error', 'Failed to stop recording.');
+    }
   };
 
   const recordBtnAnimStyle = useAnimatedStyle(() => ({

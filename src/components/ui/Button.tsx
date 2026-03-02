@@ -72,7 +72,7 @@ export function Button({
 
   const handlePress = (e: any) => {
     if (haptic) {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
     }
     onPress?.(e);
   };

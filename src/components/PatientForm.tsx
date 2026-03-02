@@ -15,12 +15,12 @@ interface PatientFormProps {
 
 export function PatientForm({ formData, onUpdate, templates, templatesLoading }: PatientFormProps) {
   const handleTemplateSelect = (template: Template) => {
-    Haptics.selectionAsync();
+    Haptics.selectionAsync().catch(() => {});
     const newId = formData.templateId === template.id ? '' : template.id;
     onUpdate('templateId', newId);
 
     // Auto-fill species if the template targets exactly one species
-    if (newId && template.species.length === 1 && !formData.species) {
+    if (newId && template.species?.length === 1 && !formData.species) {
       onUpdate('species', template.species[0]);
     }
   };
@@ -115,7 +115,7 @@ export function PatientForm({ formData, onUpdate, templates, templatesLoading }:
                 <Pressable
                   key={species}
                   onPress={() => {
-                    Haptics.selectionAsync();
+                    Haptics.selectionAsync().catch(() => {});
                     onUpdate('species', isSelected ? '' : species);
                   }}
                   accessibilityRole="radio"

@@ -4,73 +4,77 @@ import * as SecureStore from 'expo-secure-store';
 const BIOMETRIC_ENABLED_KEY = 'vetsoap:biometric_enabled';
 
 export const biometrics = {
-  /**
-   * Check if the device supports biometric authentication.
-   */
   async isAvailable(): Promise<boolean> {
-    const compatible = await LocalAuthentication.hasHardwareAsync();
-    if (!compatible) return false;
-
-    const enrolled = await LocalAuthentication.isEnrolledAsync();
-    return enrolled;
+    try {
+      const compatible = await LocalAuthentication.hasHardwareAsync();
+      if (!compatible) return false;
+      return await LocalAuthentication.isEnrolledAsync();
+    } catch (error) {
+      console.error('[Biometrics] isAvailable failed:', error);
+      return false;
+    }
   },
 
-  /**
-   * Get the types of biometric authentication available on the device.
-   */
   async getType(): Promise<string> {
-    const types = await LocalAuthentication.supportedAuthenticationTypesAsync();
-
-    if (types.includes(LocalAuthentication.AuthenticationType.FACIAL_RECOGNITION)) {
-      return 'Face ID';
-    }
-    if (types.includes(LocalAuthentication.AuthenticationType.FINGERPRINT)) {
-      return 'Fingerprint';
-    }
-    if (types.includes(LocalAuthentication.AuthenticationType.IRIS)) {
-      return 'Iris';
+    try {
+      const types = await LocalAuthentication.supportedAuthenticationTypesAsync();
+      if (types.includes(LocalAuthentication.AuthenticationType.FACIAL_RECOGNITION)) {
+        return 'Face ID';
+      }
+      if (types.includes(LocalAuthentication.AuthenticationType.FINGERPRINT)) {
+        return 'Fingerprint';
+      }
+      if (types.includes(LocalAuthentication.AuthenticationType.IRIS)) {
+        return 'Iris';
+      }
+    } catch (error) {
+      console.error('[Biometrics] getType failed:', error);
     }
     return 'Biometric';
   },
 
-  /**
-   * Check if the user has opted in to biometric authentication.
-   */
   async isEnabled(): Promise<boolean> {
-    const value = await SecureStore.getItemAsync(BIOMETRIC_ENABLED_KEY);
-    return value === 'true';
-  },
-
-  /**
-   * Enable or disable biometric authentication preference.
-   */
-  async setEnabled(enabled: boolean): Promise<void> {
-    if (enabled) {
-      await SecureStore.setItemAsync(BIOMETRIC_ENABLED_KEY, 'true');
-    } else {
-      await SecureStore.deleteItemAsync(BIOMETRIC_ENABLED_KEY);
+    try {
+      const value = await SecureStore.getItemAsync(BIOMETRIC_ENABLED_KEY);
+      return value === 'true';
+    } catch (error) {
+      console.error('[Biometrics] isEnabled failed:', error);
+      return false;
     }
   },
 
-  /**
-   * Prompt the user for biometric authentication.
-   * Returns true if authenticated successfully, false otherwise.
-   */
-  async authenticate(reason = 'Authenticate to access VetSOAP'): Promise<boolean> {
-    const result = await LocalAuthentication.authenticateAsync({
-      promptMessage: reason,
-      cancelLabel: 'Use Password',
-      disableDeviceFallback: false,
-      fallbackLabel: 'Use Passcode',
-    });
-
-    return result.success;
+  async setEnabled(enabled: boolean): Promise<void> {
+    try {
+      if (enabled) {
+        await SecureStore.setItemAsync(BIOMETRIC_ENABLED_KEY, 'true');
+      } else {
+        await SecureStore.deleteItemAsync(BIOMETRIC_ENABLED_KEY);
+      }
+    } catch (error) {
+      console.error('[Biometrics] setEnabled failed:', error);
+    }
   },
 
-  /**
-   * Clear biometric preference (used during sign out).
-   */
+  async authenticate(reason = 'Authenticate to access VetSOAP'): Promise<boolean> {
+    try {
+      const result = await LocalAuthentication.authenticateAsync({
+        promptMessage: reason,
+        cancelLabel: 'Use Password',
+        disableDeviceFallback: false,
+        fallbackLabel: 'Use Passcode',
+      });
+      return result.success;
+    } catch (error) {
+      console.error('[Biometrics] authenticate failed:', error);
+      return false;
+    }
+  },
+
   async clear(): Promise<void> {
-    await SecureStore.deleteItemAsync(BIOMETRIC_ENABLED_KEY);
+    try {
+      await SecureStore.deleteItemAsync(BIOMETRIC_ENABLED_KEY);
+    } catch (error) {
+      console.error('[Biometrics] clear failed:', error);
+    }
   },
 };

@@ -85,7 +85,13 @@ export const recordingsApi = {
     try {
       // Read local file to get blob and size
       const fileResponse = await fetch(fileUri);
+      if (!fileResponse.ok) {
+        throw new Error('Failed to read the recorded audio file. Please try recording again.');
+      }
       const blob = await fileResponse.blob();
+      if (!blob.size) {
+        throw new Error('The recorded audio file is empty. Please try recording again.');
+      }
       const fileSizeBytes =
         blob.size || Number(fileResponse.headers.get('content-length')) || undefined;
 

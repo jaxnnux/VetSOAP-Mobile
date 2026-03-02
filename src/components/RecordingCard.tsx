@@ -24,12 +24,15 @@ export function RecordingCard({ recording }: RecordingCardProps) {
     transform: [{ scale: scale.value }],
   }));
 
-  const formattedDate = new Date(recording.createdAt).toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
+  const parsedDate = new Date(recording.createdAt);
+  const formattedDate = isNaN(parsedDate.getTime())
+    ? ''
+    : parsedDate.toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+      });
 
   const description = [
     recording.species,

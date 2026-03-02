@@ -39,7 +39,7 @@ export default function HomeScreen() {
   }));
 
   return (
-    <ScreenContainer refreshing={isRefetching} onRefresh={refetch}>
+    <ScreenContainer refreshing={isRefetching} onRefresh={() => { refetch().catch(() => {}); }}>
       {/* Header */}
       <Animated.View entering={FadeInDown.duration(400)} className="mb-6">
         <Text
@@ -56,7 +56,7 @@ export default function HomeScreen() {
       {/* Quick Action */}
       <AnimatedPressable
         onPress={() => {
-          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
           router.push('/(app)/record');
         }}
         onPressIn={() => {

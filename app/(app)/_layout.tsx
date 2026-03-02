@@ -16,7 +16,7 @@ export default function AppLayout() {
     Alert.alert(
       'Session Expired',
       'You have been signed out due to inactivity.',
-      [{ text: 'OK', onPress: () => signOut() }]
+      [{ text: 'OK', onPress: () => { signOut().catch(() => {}); } }]
     );
   }, [signOut]);
 
@@ -65,7 +65,7 @@ export default function AppLayout() {
       }}
       screenListeners={{
         tabPress: () => {
-          Haptics.selectionAsync();
+          Haptics.selectionAsync().catch(() => {});
         },
       }}
     >

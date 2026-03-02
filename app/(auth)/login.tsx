@@ -46,21 +46,25 @@ export default function LoginScreen() {
     setError(null);
     setIsLoading(true);
 
-    const result = await signIn(emailResult.data, password);
-    if (result.error) {
-      failedAttemptsRef.current += 1;
-      if (failedAttemptsRef.current >= MAX_LOGIN_ATTEMPTS) {
-        lockoutUntilRef.current = Date.now() + LOCKOUT_DURATION_MS;
-        failedAttemptsRef.current = 0;
-        setError('Too many failed attempts. Please try again in 60s.');
+    try {
+      const result = await signIn(emailResult.data, password);
+      if (result.error) {
+        failedAttemptsRef.current += 1;
+        if (failedAttemptsRef.current >= MAX_LOGIN_ATTEMPTS) {
+          lockoutUntilRef.current = Date.now() + LOCKOUT_DURATION_MS;
+          failedAttemptsRef.current = 0;
+          setError('Too many failed attempts. Please try again in 60s.');
+        } else {
+          setError(result.error);
+        }
       } else {
-        setError(result.error);
+        failedAttemptsRef.current = 0;
       }
-    } else {
-      failedAttemptsRef.current = 0;
+    } catch {
+      setError('A network error occurred. Please check your connection and try again.');
+    } finally {
+      setIsLoading(false);
     }
-
-    setIsLoading(false);
   }, [email, password, signIn]);
 
   return (

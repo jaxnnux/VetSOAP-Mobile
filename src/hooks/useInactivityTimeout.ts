@@ -70,15 +70,19 @@ export function useInactivityTimeout({
     };
   }, [resetTimer]);
 
+  // Keep a ref to the latest resetTimer so PanResponder always calls the current version
+  const resetTimerRef = useRef(resetTimer);
+  resetTimerRef.current = resetTimer;
+
   // PanResponder to detect user touches
   const panResponder = useRef(
     PanResponder.create({
       onStartShouldSetPanResponderCapture: () => {
-        resetTimer();
+        resetTimerRef.current();
         return false; // Don't capture - just observe
       },
       onMoveShouldSetPanResponderCapture: () => {
-        resetTimer();
+        resetTimerRef.current();
         return false;
       },
     })

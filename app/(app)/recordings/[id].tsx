@@ -182,14 +182,17 @@ export default function RecordingDetailScreen() {
   }
 
   const isProcessing = !['completed', 'failed'].includes(recording.status);
-  const formattedDate = new Date(recording.createdAt).toLocaleDateString('en-US', {
-    weekday: 'long',
-    month: 'long',
-    day: 'numeric',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
+  const parsedDate = new Date(recording.createdAt);
+  const formattedDate = isNaN(parsedDate.getTime())
+    ? ''
+    : parsedDate.toLocaleDateString('en-US', {
+        weekday: 'long',
+        month: 'long',
+        day: 'numeric',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+      });
 
   return (
     <SafeAreaView className="screen">

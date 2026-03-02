@@ -8,32 +8,59 @@ const KEYS = {
 
 export const secureStorage = {
   async getToken(): Promise<string | null> {
-    return SecureStore.getItemAsync(KEYS.ACCESS_TOKEN);
+    try {
+      return await SecureStore.getItemAsync(KEYS.ACCESS_TOKEN);
+    } catch (error) {
+      console.error('[SecureStorage] getToken failed:', error);
+      return null;
+    }
   },
 
   async setToken(token: string): Promise<void> {
-    await SecureStore.setItemAsync(KEYS.ACCESS_TOKEN, token);
+    try {
+      await SecureStore.setItemAsync(KEYS.ACCESS_TOKEN, token);
+    } catch (error) {
+      console.error('[SecureStorage] setToken failed:', error);
+    }
   },
 
   async getRefreshToken(): Promise<string | null> {
-    return SecureStore.getItemAsync(KEYS.REFRESH_TOKEN);
+    try {
+      return await SecureStore.getItemAsync(KEYS.REFRESH_TOKEN);
+    } catch (error) {
+      console.error('[SecureStorage] getRefreshToken failed:', error);
+      return null;
+    }
   },
 
   async setRefreshToken(token: string): Promise<void> {
-    await SecureStore.setItemAsync(KEYS.REFRESH_TOKEN, token);
+    try {
+      await SecureStore.setItemAsync(KEYS.REFRESH_TOKEN, token);
+    } catch (error) {
+      console.error('[SecureStorage] setRefreshToken failed:', error);
+    }
   },
 
   async getSession(): Promise<string | null> {
-    return SecureStore.getItemAsync(KEYS.SESSION);
+    try {
+      return await SecureStore.getItemAsync(KEYS.SESSION);
+    } catch (error) {
+      console.error('[SecureStorage] getSession failed:', error);
+      return null;
+    }
   },
 
   async setSession(session: string): Promise<void> {
-    await SecureStore.setItemAsync(KEYS.SESSION, session);
+    try {
+      await SecureStore.setItemAsync(KEYS.SESSION, session);
+    } catch (error) {
+      console.error('[SecureStorage] setSession failed:', error);
+    }
   },
 
   async clearAll(): Promise<void> {
-    await SecureStore.deleteItemAsync(KEYS.ACCESS_TOKEN);
-    await SecureStore.deleteItemAsync(KEYS.REFRESH_TOKEN);
-    await SecureStore.deleteItemAsync(KEYS.SESSION);
+    try { await SecureStore.deleteItemAsync(KEYS.ACCESS_TOKEN); } catch { /* ignore */ }
+    try { await SecureStore.deleteItemAsync(KEYS.REFRESH_TOKEN); } catch { /* ignore */ }
+    try { await SecureStore.deleteItemAsync(KEYS.SESSION); } catch { /* ignore */ }
   },
 };

@@ -18,7 +18,12 @@ export async function copyWithAutoClear(text: string): Promise<void> {
     clearTimer = null;
   }
 
-  await Clipboard.setStringAsync(text);
+  try {
+    await Clipboard.setStringAsync(text);
+  } catch (error) {
+    console.error('[Clipboard] setStringAsync failed:', error);
+    return;
+  }
 
   // Schedule clipboard clear
   clearTimer = setTimeout(async () => {

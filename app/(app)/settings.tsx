@@ -18,42 +18,53 @@ export default function SettingsScreen() {
 
   useEffect(() => {
     (async () => {
-      const available = await biometrics.isAvailable();
-      setBiometricAvailable(available);
-      if (available) {
-        const [enabled, type] = await Promise.all([
-          biometrics.isEnabled(),
-          biometrics.getType(),
-        ]);
-        setBiometricEnabled(enabled);
-        setBiometricType(type);
+      try {
+        const available = await biometrics.isAvailable();
+        setBiometricAvailable(available);
+        if (available) {
+          const [enabled, type] = await Promise.all([
+            biometrics.isEnabled(),
+            biometrics.getType(),
+          ]);
+          setBiometricEnabled(enabled);
+          setBiometricType(type);
+        }
+      } catch (error) {
+        console.error('[Settings] Failed to load biometric state:', error);
       }
     })();
   }, []);
 
   const toggleBiometric = useCallback(async (value: boolean) => {
-    if (value) {
-      // Verify identity before enabling
-      const success = await biometrics.authenticate(
-        'Verify your identity to enable biometric lock'
-      );
-      if (!success) return;
+    try {
+      if (value) {
+        const success = await biometrics.authenticate(
+          'Verify your identity to enable biometric lock'
+        );
+        if (!success) return;
+      }
+      await biometrics.setEnabled(value);
+      setBiometricEnabled(value);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+    } catch (error) {
+      console.error('[Settings] toggleBiometric failed:', error);
     }
-    await biometrics.setEnabled(value);
-    setBiometricEnabled(value);
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
   }, []);
 
   const handleSignOut = () => {
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning).catch(() => {});
     Alert.alert('Sign Out', 'Are you sure you want to sign out?', [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Sign Out',
         style: 'destructive',
         onPress: async () => {
-          await biometrics.clear();
-          await signOut();
+          try {
+            await biometrics.clear();
+            await signOut();
+          } catch (error) {
+            console.error('[Settings] signOut failed:', error);
+          }
         },
       },
     ]);

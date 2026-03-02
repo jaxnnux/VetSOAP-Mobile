@@ -89,7 +89,7 @@ export default function RecordingsListScreen() {
           return <RecordingCard recording={item} />;
         }}
         contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 20 }}
-        refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} />}
+        refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={() => { refetch().catch(() => {}); }} />}
         onEndReached={() => {
           if (hasMore && !isFetchingNextPageRef.current) {
             isFetchingNextPageRef.current = true;

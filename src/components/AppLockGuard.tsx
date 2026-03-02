@@ -21,45 +21,55 @@ export function AppLockGuard({ children }: AppLockGuardProps) {
 
   const attemptUnlock = useCallback(async () => {
     setIsAuthenticating(true);
-    const success = await biometrics.authenticate('Verify your identity to continue');
-    if (success) {
-      setIsLocked(false);
+    try {
+      const success = await biometrics.authenticate('Verify your identity to continue');
+      if (success) {
+        setIsLocked(false);
+      }
+    } catch (error) {
+      console.error('[AppLockGuard] attemptUnlock failed:', error);
+    } finally {
+      setIsAuthenticating(false);
     }
-    setIsAuthenticating(false);
   }, []);
 
   useEffect(() => {
     const handleAppStateChange = async (nextState: AppStateStatus) => {
-      if (nextState === 'background' || nextState === 'inactive') {
-        backgroundedAtRef.current = Date.now();
-        return;
-      }
+      try {
+        if (nextState === 'background' || nextState === 'inactive') {
+          backgroundedAtRef.current = Date.now();
+          return;
+        }
 
-      // App came to foreground
-      if (nextState === 'active' && backgroundedAtRef.current) {
-        const elapsed = Date.now() - backgroundedAtRef.current;
-        backgroundedAtRef.current = null;
+        // App came to foreground
+        if (nextState === 'active' && backgroundedAtRef.current) {
+          const elapsed = Date.now() - backgroundedAtRef.current;
+          backgroundedAtRef.current = null;
 
-        if (elapsed >= BACKGROUND_LOCK_THRESHOLD_MS) {
-          // Check if biometric is enabled
-          const [available, enabled] = await Promise.all([
-            biometrics.isAvailable(),
-            biometrics.isEnabled(),
-          ]);
+          if (elapsed >= BACKGROUND_LOCK_THRESHOLD_MS) {
+            const [available, enabled] = await Promise.all([
+              biometrics.isAvailable(),
+              biometrics.isEnabled(),
+            ]);
 
-          if (available && enabled) {
-            setIsLocked(true);
-            // Auto-prompt
-            setIsAuthenticating(true);
-            const success = await biometrics.authenticate(
-              'Verify your identity to continue'
-            );
-            if (success) {
-              setIsLocked(false);
+            if (available && enabled) {
+              setIsLocked(true);
+              setIsAuthenticating(true);
+              try {
+                const success = await biometrics.authenticate(
+                  'Verify your identity to continue'
+                );
+                if (success) {
+                  setIsLocked(false);
+                }
+              } finally {
+                setIsAuthenticating(false);
+              }
             }
-            setIsAuthenticating(false);
           }
         }
+      } catch (error) {
+        console.error('[AppLockGuard] handleAppStateChange error:', error);
       }
     };
 

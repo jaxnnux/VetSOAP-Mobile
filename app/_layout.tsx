@@ -4,6 +4,7 @@ import { Stack } from 'expo-router';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider } from '../src/auth/AuthProvider';
 import { StatusBar } from 'expo-status-bar';
+import { CONFIG_MISSING } from '../src/config';
 import '../global.css';
 
 const queryClient = new QueryClient({
@@ -53,6 +54,19 @@ class ErrorBoundary extends React.Component<
 }
 
 export default function RootLayout() {
+  if (CONFIG_MISSING) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24, backgroundColor: '#fef2f2' }}>
+        <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#991b1b', marginBottom: 12 }}>
+          Configuration Error
+        </Text>
+        <Text style={{ fontSize: 14, color: '#7f1d1d', textAlign: 'center' }}>
+          Required environment variables are missing. Please check your build configuration and rebuild the app.
+        </Text>
+      </View>
+    );
+  }
+
   return (
     <ErrorBoundary>
       <QueryClientProvider client={queryClient}>

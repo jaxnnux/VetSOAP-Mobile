@@ -1,27 +1,37 @@
-function requireEnv(key: string): string {
+const configErrors: string[] = [];
+
+function getEnv(key: string): string {
   const value = process.env[key];
   if (!value) {
-    throw new Error(`Missing required environment variable: ${key}`);
+    configErrors.push(`Missing required environment variable: ${key}`);
+    return '';
   }
   return value;
 }
 
-function requireUrl(key: string): string {
-  const value = requireEnv(key);
-  if (!value.startsWith('https://')) {
-    throw new Error(`${key} must use HTTPS in production`);
+function getUrl(key: string): string {
+  const value = getEnv(key);
+  if (value && !value.startsWith('https://')) {
+    configErrors.push(`${key} must use HTTPS in production`);
+    return '';
   }
   return value;
 }
 
 export const API_URL = __DEV__
   ? (process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000')
-  : requireUrl('EXPO_PUBLIC_API_URL');
+  : getUrl('EXPO_PUBLIC_API_URL');
 
 export const SUPABASE_URL = __DEV__
   ? (process.env.EXPO_PUBLIC_SUPABASE_URL || '')
-  : requireUrl('EXPO_PUBLIC_SUPABASE_URL');
+  : getUrl('EXPO_PUBLIC_SUPABASE_URL');
 
 export const SUPABASE_ANON_KEY = __DEV__
   ? (process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || '')
-  : requireEnv('EXPO_PUBLIC_SUPABASE_ANON_KEY');
+  : getEnv('EXPO_PUBLIC_SUPABASE_ANON_KEY');
+
+export const CONFIG_MISSING = configErrors.length > 0;
+
+if (CONFIG_MISSING) {
+  console.error('[Config] Missing or invalid environment variables:', configErrors);
+}
