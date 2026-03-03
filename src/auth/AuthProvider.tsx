@@ -213,7 +213,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return { error: null };
   }, []);
 
-  const isAuthenticated = !!session?.access_token && !isTokenExpired(session.expires_at);
+  const tokenExpired = isTokenExpired(session?.expires_at);
+  const isAuthenticated = !!session?.access_token && !tokenExpired;
+  // Log every auth state computation to trace the sign-out
+  if (session?.access_token) {
+    console.log('[Auth] isAuthenticated:', isAuthenticated,
+      'hasToken:', true, 'tokenExpired:', tokenExpired,
+      'expires_at:', session.expires_at, 'user:', !!user);
+  }
 
   return (
     <AuthContext.Provider

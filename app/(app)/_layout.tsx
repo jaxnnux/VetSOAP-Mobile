@@ -28,6 +28,8 @@ export default function AppLayout() {
     enabled: isAuthenticated,
   });
 
+  console.log('[AppLayout] render: isLoading=', isLoading, 'isAuthenticated=', isAuthenticated);
+
   if (isLoading) {
     return (
       <View className="flex-1 justify-center items-center bg-stone-50">
@@ -37,6 +39,7 @@ export default function AppLayout() {
   }
 
   if (!isAuthenticated) {
+    console.log('[AppLayout] REDIRECTING to login — isAuthenticated is false');
     return <Redirect href="/(auth)/login" />;
   }
 

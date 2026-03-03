@@ -66,6 +66,7 @@ export class ApiClient {
       // Validate the request targets a trusted domain over HTTPS
       validateRequestUrl(url);
 
+      console.log('[ApiClient]', method, path, 'hasToken:', !!authHeaders.Authorization);
       const response = await fetch(url, {
         method,
         headers: {
@@ -78,6 +79,7 @@ export class ApiClient {
         signal: controller.signal,
       });
 
+      console.log('[ApiClient]', method, path, 'status:', response.status);
       if (!response.ok) {
         if (response.status === 401) {
           try {
