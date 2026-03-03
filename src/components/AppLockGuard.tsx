@@ -1,7 +1,8 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { View, Text, AppState } from 'react-native';
+import React, { useState, useEffect, useRef, useCallback, useContext } from 'react';
+import { View, Text, AppState, Alert } from 'react-native';
 import type { AppStateStatus } from 'react-native';
 import { biometrics } from '../lib/biometrics';
+import { AuthContext } from '../auth/AuthProvider';
 import { Button } from './ui/Button';
 
 const BACKGROUND_LOCK_THRESHOLD_MS = 30_000; // 30 seconds
@@ -15,11 +16,32 @@ interface AppLockGuardProps {
  * when the app returns from background after a threshold duration.
  */
 export function AppLockGuard({ children }: AppLockGuardProps) {
+  const { signOut } = useContext(AuthContext);
   const [isLocked, setIsLocked] = useState(false);
   const [isAuthenticating, setIsAuthenticating] = useState(false);
   const backgroundedAtRef = useRef<number | null>(null);
+  const isAuthenticatingRef = useRef(false);
+
+  const handleLockScreenSignOut = useCallback(() => {
+    Alert.alert(
+      'Sign Out',
+      'Are you sure you want to sign out?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Sign Out',
+          style: 'destructive',
+          onPress: () => {
+            signOut().then(() => setIsLocked(false)).catch(() => {});
+          },
+        },
+      ]
+    );
+  }, [signOut]);
 
   const attemptUnlock = useCallback(async () => {
+    if (isAuthenticatingRef.current) return;
+    isAuthenticatingRef.current = true;
     setIsAuthenticating(true);
     try {
       const success = await biometrics.authenticate('Verify your identity to continue');
@@ -29,48 +51,55 @@ export function AppLockGuard({ children }: AppLockGuardProps) {
     } catch (error) {
       console.error('[AppLockGuard] attemptUnlock failed:', error);
     } finally {
+      isAuthenticatingRef.current = false;
       setIsAuthenticating(false);
     }
   }, []);
 
   useEffect(() => {
-    const handleAppStateChange = async (nextState: AppStateStatus) => {
-      try {
-        if (nextState === 'background' || nextState === 'inactive') {
-          backgroundedAtRef.current = Date.now();
-          return;
-        }
+    const handleAppStateChange = (nextState: AppStateStatus) => {
+      (async () => {
+        try {
+          if (nextState === 'background' || nextState === 'inactive') {
+            backgroundedAtRef.current = Date.now();
+            return;
+          }
 
-        // App came to foreground
-        if (nextState === 'active' && backgroundedAtRef.current) {
-          const elapsed = Date.now() - backgroundedAtRef.current;
-          backgroundedAtRef.current = null;
+          // App came to foreground
+          if (nextState === 'active' && backgroundedAtRef.current) {
+            const elapsed = Date.now() - backgroundedAtRef.current;
+            backgroundedAtRef.current = null;
 
-          if (elapsed >= BACKGROUND_LOCK_THRESHOLD_MS) {
-            const [available, enabled] = await Promise.all([
-              biometrics.isAvailable(),
-              biometrics.isEnabled(),
-            ]);
+            if (elapsed >= BACKGROUND_LOCK_THRESHOLD_MS) {
+              const [available, enabled] = await Promise.all([
+                biometrics.isAvailable(),
+                biometrics.isEnabled(),
+              ]);
 
-            if (available && enabled) {
-              setIsLocked(true);
-              setIsAuthenticating(true);
-              try {
-                const success = await biometrics.authenticate(
-                  'Verify your identity to continue'
-                );
-                if (success) {
-                  setIsLocked(false);
+              if (available && enabled && !isAuthenticatingRef.current) {
+                isAuthenticatingRef.current = true;
+                setIsLocked(true);
+                setIsAuthenticating(true);
+                try {
+                  const success = await biometrics.authenticate(
+                    'Verify your identity to continue'
+                  );
+                  if (success) {
+                    setIsLocked(false);
+                  }
+                } finally {
+                  isAuthenticatingRef.current = false;
+                  setIsAuthenticating(false);
                 }
-              } finally {
-                setIsAuthenticating(false);
               }
             }
           }
+        } catch (error) {
+          console.error('[AppLockGuard] handleAppStateChange error:', error);
+          isAuthenticatingRef.current = false;
+          setIsAuthenticating(false);
         }
-      } catch (error) {
-        console.error('[AppLockGuard] handleAppStateChange error:', error);
-      }
+      })().catch(() => {});
     };
 
     const subscription = AppState.addEventListener('change', handleAppStateChange);
@@ -125,6 +154,16 @@ export function AppLockGuard({ children }: AppLockGuardProps) {
         >
           Unlock
         </Button>
+        <View style={{ marginTop: 16 }}>
+          <Button
+            variant="secondary"
+            size="sm"
+            onPress={handleLockScreenSignOut}
+            accessibilityLabel="Sign out of the app"
+          >
+            Sign Out
+          </Button>
+        </View>
       </View>
     );
   }

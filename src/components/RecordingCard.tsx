@@ -55,7 +55,7 @@ export function RecordingCard({ recording }: RecordingCardProps) {
         scale.value = withSpring(1, { damping: 15, stiffness: 300 });
       }}
       accessibilityRole="button"
-      accessibilityLabel={`${recording.patientName}, ${description || 'no species'}, ${formattedDate}, status ${recording.status}`}
+      accessibilityLabel={`Recording from ${formattedDate || 'unknown date'}, status ${recording.status}`}
       className="card mb-2"
       style={animatedStyle}
     >

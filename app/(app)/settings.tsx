@@ -5,10 +5,12 @@ import { useRouter } from 'expo-router';
 import { LogOut, User, ChevronLeft, Shield } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import { useAuth } from '../../src/hooks/useAuth';
+import { useScreenSecurity } from '../../src/hooks/useScreenSecurity';
 import { biometrics } from '../../src/lib/biometrics';
 import Constants from 'expo-constants';
 
 export default function SettingsScreen() {
+  useScreenSecurity();
   const router = useRouter();
   const { user, signOut } = useAuth();
 
@@ -58,13 +60,15 @@ export default function SettingsScreen() {
       {
         text: 'Sign Out',
         style: 'destructive',
-        onPress: async () => {
-          try {
-            await biometrics.clear();
-            await signOut();
-          } catch (error) {
-            console.error('[Settings] signOut failed:', error);
-          }
+        onPress: () => {
+          (async () => {
+            try {
+              await biometrics.clear();
+              await signOut();
+            } catch (error) {
+              console.error('[Settings] signOut failed:', error);
+            }
+          })().catch(() => {});
         },
       },
     ]);
@@ -133,7 +137,7 @@ export default function SettingsScreen() {
             </View>
             <Switch
               value={biometricEnabled}
-              onValueChange={toggleBiometric}
+              onValueChange={(v) => { toggleBiometric(v).catch(() => {}); }}
               trackColor={{ false: '#d6d3d1', true: '#0d8775' }}
               thumbColor="#fff"
               accessibilityLabel={`Toggle ${biometricType} lock`}

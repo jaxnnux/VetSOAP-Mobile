@@ -52,7 +52,8 @@ export const emailSchema = z
 
 export const passwordSchema = z
   .string()
-  .min(8, 'Password must be at least 8 characters');
+  .min(8, 'Password must be at least 8 characters')
+  .max(256, 'Password must be at most 256 characters');
 
 export type CreateRecordingInput = z.input<typeof createRecordingSchema>;
 export type ValidatedCreateRecording = z.output<typeof createRecordingSchema>;

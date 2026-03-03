@@ -1,49 +1,59 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, FlatList, RefreshControl, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { useQuery } from '@tanstack/react-query';
+import { useInfiniteQuery } from '@tanstack/react-query';
 import Animated, { FadeInRight } from 'react-native-reanimated';
 import { Search } from 'lucide-react-native';
 import { recordingsApi } from '../../../src/api/recordings';
 import { RecordingCard } from '../../../src/components/RecordingCard';
 import { SkeletonCard } from '../../../src/components/ui/Skeleton';
 import { Button } from '../../../src/components/ui/Button';
+import { useScreenSecurity } from '../../../src/hooks/useScreenSecurity';
+
+const PAGE_SIZE = 20;
 
 export default function RecordingsListScreen() {
   const router = useRouter();
+  useScreenSecurity();
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
-  const [page, setPage] = useState(1);
   const [isFocused, setIsFocused] = useState(false);
-  const isFetchingNextPageRef = useRef(false);
 
   useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedSearch(search);
-      setPage(1);
     }, 300);
     return () => clearTimeout(timer);
   }, [search]);
 
-  const { data, isLoading, refetch, isRefetching } = useQuery({
-    queryKey: ['recordings', 'list', debouncedSearch, page],
-    queryFn: () =>
+  const {
+    data,
+    isLoading,
+    refetch,
+    isRefetching,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useInfiniteQuery({
+    queryKey: ['recordings', 'list', debouncedSearch],
+    queryFn: ({ pageParam = 1 }) =>
       recordingsApi.list({
         search: debouncedSearch || undefined,
-        page,
-        limit: 20,
+        page: pageParam,
+        limit: PAGE_SIZE,
         sortBy: 'createdAt',
         sortOrder: 'desc',
       }),
+    initialPageParam: 1,
+    getNextPageParam: (lastPage) => {
+      if (!lastPage.pagination) return undefined;
+      const { page, totalPages } = lastPage.pagination;
+      return page < totalPages ? page + 1 : undefined;
+    },
   });
 
-  useEffect(() => {
-    isFetchingNextPageRef.current = false;
-  }, [data]);
-
-  const recordings = data?.data ?? [];
-  const hasMore = data?.pagination ? page < data.pagination.totalPages : false;
+  const recordings = data?.pages.flatMap((page) => page.data) ?? [];
 
   return (
     <SafeAreaView className="screen">
@@ -91,14 +101,13 @@ export default function RecordingsListScreen() {
         contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 20 }}
         refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={() => { refetch().catch(() => {}); }} />}
         onEndReached={() => {
-          if (hasMore && !isFetchingNextPageRef.current) {
-            isFetchingNextPageRef.current = true;
-            setPage((p) => p + 1);
+          if (hasNextPage && !isFetchingNextPage) {
+            fetchNextPage().catch(() => {});
           }
         }}
         onEndReachedThreshold={0.5}
         ListFooterComponent={
-          hasMore ? (
+          isFetchingNextPage ? (
             <View className="py-4 items-center">
               <ActivityIndicator size="small" color="#0d8775" />
             </View>

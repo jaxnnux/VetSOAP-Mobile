@@ -43,6 +43,7 @@ function WaveBar({ index, isActive, isPaused }: { index: number; isActive: boole
     } else {
       height.value = withTiming(MIN_HEIGHT, { duration: 400 });
     }
+    return () => { cancelAnimation(height); };
   }, [isActive, isPaused]);
 
   const animatedStyle = useAnimatedStyle(() => ({

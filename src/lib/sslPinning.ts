@@ -16,7 +16,7 @@
  * This module provides the managed-workflow-compatible layer.
  */
 
-import { API_URL, SUPABASE_URL } from '../config';
+import { API_URL, SUPABASE_URL, R2_BUCKET_HOSTNAME } from '../config';
 
 /** Trusted domains extracted from config at startup */
 const TRUSTED_DOMAINS: string[] = [];
@@ -38,11 +38,8 @@ function initTrustedDomains() {
   if (apiHost) TRUSTED_DOMAINS.push(apiHost);
   if (supabaseHost) TRUSTED_DOMAINS.push(supabaseHost);
 
-  // Supabase realtime and storage subdomains
-  if (supabaseHost) {
-    // supabase storage CDN uses same project domain
-    TRUSTED_DOMAINS.push(supabaseHost);
-  }
+  // Add the specific R2 bucket hostname if configured
+  if (R2_BUCKET_HOSTNAME) TRUSTED_DOMAINS.push(R2_BUCKET_HOSTNAME);
 }
 
 /**
@@ -66,21 +63,18 @@ export function validateRequestUrl(url: string): void {
     throw new Error('Insecure connection rejected: HTTPS required');
   }
 
-  // Allow presigned R2/S3 upload URLs (Cloudflare R2 domains)
-  if (
-    parsed.hostname.endsWith('.r2.cloudflarestorage.com') ||
-    parsed.hostname.endsWith('.r2.dev')
-  ) {
+  // Allow presigned R2 upload URLs only for the configured bucket hostname
+  if (R2_BUCKET_HOSTNAME && parsed.hostname === R2_BUCKET_HOSTNAME) {
     return;
   }
 
   // Check against trusted domains
   const isTrusted = TRUSTED_DOMAINS.some(
-    (domain) => parsed.hostname === domain || parsed.hostname.endsWith(`.${domain}`)
+    (domain) => parsed.hostname === domain
   );
 
   if (!isTrusted) {
-    throw new Error(`Request to untrusted domain rejected: ${parsed.hostname}`);
+    throw new Error('Request to untrusted domain rejected');
   }
 }
 
@@ -103,22 +97,20 @@ export function validateUploadUrl(url: string): void {
     throw new Error('Insecure upload URL rejected: HTTPS required');
   }
 
-  // Presigned URLs must have an expiry parameter
+  // Validate hostname when R2_BUCKET_HOSTNAME is configured
+  if (R2_BUCKET_HOSTNAME) {
+    if (parsed.hostname !== R2_BUCKET_HOSTNAME) {
+      throw new Error('Upload URL targets an untrusted storage domain');
+    }
+  }
+
+  // Verify presigned URL has a signature parameter (S3/R2 v4 signing)
   const hasSignature =
     parsed.searchParams.has('X-Amz-Signature') ||
-    parsed.searchParams.has('sig') ||
-    parsed.searchParams.has('token');
+    parsed.searchParams.has('X-Amz-Credential') ||
+    parsed.searchParams.has('Signature');
 
   if (!hasSignature) {
-    // Allow R2/S3 bucket domains even without visible signature params
-    // (some presigned URL formats embed the signature differently)
-    const isKnownStorage =
-      parsed.hostname.endsWith('.r2.cloudflarestorage.com') ||
-      parsed.hostname.endsWith('.r2.dev') ||
-      parsed.hostname.endsWith('.s3.amazonaws.com');
-
-    if (!isKnownStorage) {
-      throw new Error('Upload URL does not appear to be a valid presigned URL');
-    }
+    throw new Error('Upload URL is missing a presigned signature');
   }
 }

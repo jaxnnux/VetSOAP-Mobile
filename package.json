@@ -17,6 +17,7 @@
     "expo-build-properties": "~55.0.9",
     "expo-clipboard": "^55.0.8",
     "expo-constants": "^55.0.7",
+    "expo-file-system": "~55.0.10",
     "expo-font": "^55.0.4",
     "expo-haptics": "~55.0.8",
     "expo-linking": "^55.0.7",
@@ -42,6 +43,7 @@
   },
   "devDependencies": {
     "@types/react": "~19.2.2",
+    "babel-plugin-transform-remove-console": "^6.9.4",
     "expo-dev-client": "~55.0.10",
     "typescript": "~5.9.2"
   },

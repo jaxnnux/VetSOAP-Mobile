@@ -108,12 +108,11 @@ function AccordionSection({
           {showCopied && <CopiedToast />}
           <Text
             className="text-body text-stone-700 mt-2 leading-relaxed"
-            selectable
           >
             {content ?? ''}
           </Text>
           <Pressable
-            onPress={copySection}
+            onPress={() => { copySection().catch(() => {}); }}
             accessibilityRole="button"
             accessibilityLabel={`Copy ${label} section`}
             className="self-end mt-2.5 flex-row items-center gap-1 px-2.5 py-1 rounded border border-stone-300 min-h-[44px]"
@@ -164,7 +163,7 @@ export function SoapNoteView({ soapNote }: SoapNoteViewProps) {
         </Text>
         {showCopiedAll && <CopiedToast />}
         <Pressable
-          onPress={copyAll}
+          onPress={() => { copyAll().catch(() => {}); }}
           accessibilityRole="button"
           accessibilityLabel="Copy full SOAP note"
           className="bg-brand-500 px-3 py-1.5 rounded-md flex-row items-center gap-1.5 min-h-[44px]"

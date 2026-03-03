@@ -3,7 +3,7 @@ import { SUPABASE_URL, SUPABASE_ANON_KEY, CONFIG_MISSING } from '../config';
 import { secureStorage } from '../lib/secureStorage';
 
 function initSupabase() {
-  if (CONFIG_MISSING) {
+  if (CONFIG_MISSING || !SUPABASE_URL || !SUPABASE_ANON_KEY) {
     // Provide valid-looking placeholders to avoid SDK validation errors at module load.
     // CONFIG_MISSING gate in _layout.tsx prevents any real usage of this client.
     return createClient('https://placeholder.invalid', 'placeholder-key', {
@@ -21,14 +21,14 @@ function initSupabase() {
           await secureStorage.setSession(value);
           try {
             const session = JSON.parse(value);
-            if (session?.access_token) {
+            if (typeof session?.access_token === 'string') {
               await secureStorage.setToken(session.access_token);
             }
-            if (session?.refresh_token) {
+            if (typeof session?.refresh_token === 'string') {
               await secureStorage.setRefreshToken(session.refresh_token);
             }
           } catch {
-            // Not JSON — ignore
+            // Not valid JSON — ignore
           }
         },
         async removeItem(_key: string) {

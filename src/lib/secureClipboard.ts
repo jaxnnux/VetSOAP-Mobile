@@ -1,8 +1,22 @@
 import * as Clipboard from 'expo-clipboard';
+import { AppState } from 'react-native';
 
-const CLIPBOARD_CLEAR_DELAY_MS = 60_000; // 1 minute
+const CLIPBOARD_CLEAR_DELAY_MS = 30_000; // 30 seconds
 
 let clearTimer: ReturnType<typeof setTimeout> | null = null;
+let pendingText: string | null = null;
+
+// Clear clipboard when app is backgrounded (PHI should not linger)
+AppState.addEventListener('change', (state) => {
+  if (state !== 'active' && pendingText !== null) {
+    Clipboard.setStringAsync('').catch(() => {});
+    if (clearTimer) {
+      clearTimeout(clearTimer);
+      clearTimer = null;
+    }
+    pendingText = null;
+  }
+});
 
 /**
  * Copy sensitive text to clipboard and schedule automatic clearing.
@@ -20,24 +34,28 @@ export async function copyWithAutoClear(text: string): Promise<void> {
 
   try {
     await Clipboard.setStringAsync(text);
+    pendingText = text;
   } catch (error) {
     console.error('[Clipboard] setStringAsync failed:', error);
     return;
   }
 
   // Schedule clipboard clear
-  clearTimer = setTimeout(async () => {
-    try {
-      // Only clear if the clipboard still contains our data.
-      // We check by reading and comparing to avoid clearing unrelated content
-      // the user may have copied after our text.
-      const current = await Clipboard.getStringAsync();
-      if (current === text) {
-        await Clipboard.setStringAsync('');
+  clearTimer = setTimeout(() => {
+    (async () => {
+      try {
+        // Only clear if the clipboard still contains our data.
+        // We check by reading and comparing to avoid clearing unrelated content
+        // the user may have copied after our text.
+        const current = await Clipboard.getStringAsync();
+        if (current === text) {
+          await Clipboard.setStringAsync('');
+        }
+      } catch {
+        // Clipboard access may fail if app is backgrounded — ignore
       }
-    } catch {
-      // Clipboard access may fail if app is backgrounded — ignore
-    }
-    clearTimer = null;
+      clearTimer = null;
+      pendingText = null;
+    })().catch(() => {});
   }, CLIPBOARD_CLEAR_DELAY_MS);
 }

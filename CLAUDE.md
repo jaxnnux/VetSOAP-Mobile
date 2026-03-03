@@ -9,6 +9,18 @@
 - **Auth:** Supabase Auth with `expo-secure-store` token persistence
 - **Build:** EAS Build (managed workflow, no bare `android/` or `ios/` committed)
 
+## Shared Infrastructure
+
+The mobile app, web app (VetSOAP-Connect), and production API server **must** all authenticate against the same Supabase project. User accounts exist in one Supabase instance — if any client points to a different project, auth will silently fail.
+
+| Service | Value |
+|---|---|
+| **Supabase project ref** | `shdzitupjltfyembqowp` |
+| **Supabase URL** | `https://shdzitupjltfyembqowp.supabase.co` |
+| **Production API** | `https://api-production-8e5e.up.railway.app` |
+
+These are the single sources of truth. The `.env` file and EAS secrets must match these values.
+
 ## Critical Crash Prevention Rules
 
 These rules come from production crash audits. Violating them will cause crashes on Android APKs.
@@ -140,6 +152,8 @@ React Query's `refetch()` returns a Promise. `RefreshControl.onRefresh` is typed
 - **Secrets:** `EXPO_PUBLIC_API_URL`, `EXPO_PUBLIC_SUPABASE_URL`, `EXPO_PUBLIC_SUPABASE_ANON_KEY` are stored as EAS project-level secrets (not in `eas.json`)
 - **Credentials:** Preview profile uses `credentialsSource: "local"` with `credentials.json` + `android/keystores/vetsoap.jks` (both gitignored)
 - **Lock file:** Must stay in sync — run `npm install` before EAS builds if dependencies change. EAS uses `npm ci` which fails on mismatch.
+- **Secrets sync:** After changing `.env`, run `eas secret:push --scope project --env-file .env --force` to update EAS build secrets. A stale EAS secret will override the local `.env` in production builds.
+- **Metro cache:** After changing `.env`, restart Metro with `npx expo start --clear`. Metro inlines `EXPO_PUBLIC_*` values at build time — a stale cache silently uses the old values. In dev mode, `config.ts` logs a warning if Supabase vars are empty.
 
 ## File Conventions
 

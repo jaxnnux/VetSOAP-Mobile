@@ -9,14 +9,17 @@ import Animated, {
   withRepeat,
   withTiming,
   Easing,
+  cancelAnimation,
 } from 'react-native-reanimated';
 import { useRouter } from 'expo-router';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Mic } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import { useAudioRecorder } from '../../src/hooks/useAudioRecorder';
+import { useScreenSecurity } from '../../src/hooks/useScreenSecurity';
 import { useTemplates } from '../../src/hooks/useTemplates';
 import { recordingsApi } from '../../src/api/recordings';
+import { ApiError } from '../../src/api/client';
 import { PatientForm } from '../../src/components/PatientForm';
 import { AudioWaveform } from '../../src/components/AudioWaveform';
 import { ScreenContainer } from '../../src/components/ui/ScreenContainer';
@@ -57,6 +60,7 @@ function PulsingDot() {
       -1,
       true
     );
+    return () => { cancelAnimation(opacity); };
   }, []);
 
   const style = useAnimatedStyle(() => ({
@@ -72,6 +76,7 @@ function PulsingDot() {
 }
 
 export default function RecordScreen() {
+  useScreenSecurity();
   const router = useRouter();
   const queryClient = useQueryClient();
   const recorder = useAudioRecorder();
@@ -88,8 +93,13 @@ export default function RecordScreen() {
 
   // Auto-select default template once templates load
   useEffect(() => {
-    if (defaultTemplate && !formData.templateId) {
-      setFormData((prev) => ({ ...prev, templateId: defaultTemplate.id }));
+    if (defaultTemplate) {
+      setFormData((prev) => {
+        if (!prev.templateId) {
+          return { ...prev, templateId: defaultTemplate.id };
+        }
+        return prev;
+      });
     }
   }, [defaultTemplate]);
 
@@ -113,11 +123,14 @@ export default function RecordScreen() {
       router.push(`/(app)/recordings/${recording.id}` as `/(app)/recordings/${string}`);
     },
     onError: (error: Error) => {
-      Alert.alert('Upload Failed', error.message || 'Failed to process recording. Please try again.');
+      Alert.alert(
+        'Upload Failed',
+        error instanceof ApiError ? error.message : 'Failed to process recording. Please try again.'
+      );
     },
   });
 
-  const updateField = (field: keyof CreateRecording, value: string) => {
+  const updateField = (field: keyof CreateRecording, value: string | undefined) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
@@ -135,43 +148,51 @@ export default function RecordScreen() {
   const canSubmit = hasRequiredFields && recorder.audioUri !== null;
   const isRecording = recorder.state === 'recording';
 
-  const handleStart = async () => {
-    try {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy).catch(() => {});
-      await recorder.start();
-    } catch (error) {
-      Alert.alert(
-        'Microphone Error',
-        'Failed to access microphone. Please check permissions in Settings.'
-      );
-    }
+  const handleStart = () => {
+    (async () => {
+      try {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy).catch(() => {});
+        await recorder.start();
+      } catch (error) {
+        Alert.alert(
+          'Microphone Error',
+          'Failed to access microphone. Please check permissions in Settings.'
+        );
+      }
+    })().catch(() => {});
   };
 
-  const handlePause = async () => {
-    try {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
-      await recorder.pause();
-    } catch {
-      Alert.alert('Recording Error', 'Failed to pause recording.');
-    }
+  const handlePause = () => {
+    (async () => {
+      try {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+        await recorder.pause();
+      } catch {
+        Alert.alert('Recording Error', 'Failed to pause recording.');
+      }
+    })().catch(() => {});
   };
 
-  const handleResume = async () => {
-    try {
-      Haptics.selectionAsync().catch(() => {});
-      await recorder.resume();
-    } catch {
-      Alert.alert('Recording Error', 'Failed to resume recording.');
-    }
+  const handleResume = () => {
+    (async () => {
+      try {
+        Haptics.selectionAsync().catch(() => {});
+        await recorder.resume();
+      } catch {
+        Alert.alert('Recording Error', 'Failed to resume recording.');
+      }
+    })().catch(() => {});
   };
 
-  const handleStop = async () => {
-    try {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
-      await recorder.stop();
-    } catch {
-      Alert.alert('Recording Error', 'Failed to stop recording.');
-    }
+  const handleStop = () => {
+    (async () => {
+      try {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+        await recorder.stop();
+      } catch {
+        Alert.alert('Recording Error', 'Failed to stop recording.');
+      }
+    })().catch(() => {});
   };
 
   const recordBtnAnimStyle = useAnimatedStyle(() => ({

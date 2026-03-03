@@ -1,20 +1,12 @@
 import React from 'react';
 import { View, Text, Pressable } from 'react-native';
 import { Stack } from 'expo-router';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider } from '../src/auth/AuthProvider';
 import { StatusBar } from 'expo-status-bar';
 import { CONFIG_MISSING } from '../src/config';
+import { queryClient } from '../src/lib/queryClient';
 import '../global.css';
-
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      retry: 2,
-      staleTime: 30000,
-    },
-  },
-});
 
 class ErrorBoundary extends React.Component<
   { children: React.ReactNode },

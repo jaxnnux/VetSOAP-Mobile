@@ -1,11 +1,12 @@
-import React from 'react';
-import { View, Text, ScrollView, Pressable, Alert } from 'react-native';
+import React, { useCallback } from 'react';
+import { View, Text, ScrollView, Pressable, Alert, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Animated, { FadeIn, FadeInUp, ZoomIn } from 'react-native-reanimated';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { ChevronLeft, RotateCcw, Check } from 'lucide-react-native';
 import { recordingsApi } from '../../../src/api/recordings';
+import { ApiError } from '../../../src/api/client';
 import { StatusBadge } from '../../../src/components/StatusBadge';
 import { SoapNoteView } from '../../../src/components/SoapNoteView';
 import { Button } from '../../../src/components/ui/Button';
@@ -127,7 +128,7 @@ export default function RecordingDetailScreen() {
   // Prevent screenshots on screens displaying patient health data
   useScreenSecurity();
 
-  const { data: recording, isLoading, isError, error } = useQuery({
+  const { data: recording, isLoading, isError, error, refetch: refetchRecording, isRefetching: isRefetchingRecording } = useQuery({
     queryKey: ['recording', id],
     queryFn: () => recordingsApi.get(id!),
     enabled: !!id,
@@ -143,11 +144,18 @@ export default function RecordingDetailScreen() {
   const {
     data: soapNote,
     isLoading: isSoapNoteLoading,
+    refetch: refetchSoapNote,
+    isRefetching: isRefetchingSoapNote,
   } = useQuery({
     queryKey: ['soapNote', id],
     queryFn: () => recordingsApi.getSoapNote(id!),
     enabled: !!id && recording?.status === 'completed',
   });
+
+  const handleRefresh = useCallback(() => {
+    refetchRecording().catch(() => {});
+    refetchSoapNote().catch(() => {});
+  }, [refetchRecording, refetchSoapNote]);
 
   const retryMutation = useMutation({
     mutationFn: () => recordingsApi.retry(id!),
@@ -155,7 +163,10 @@ export default function RecordingDetailScreen() {
       queryClient.invalidateQueries({ queryKey: ['recording', id] });
     },
     onError: (error: Error) => {
-      Alert.alert('Retry Failed', error.message);
+      Alert.alert(
+        'Retry Failed',
+        error instanceof ApiError ? error.message : 'An unexpected error occurred. Please try again.'
+      );
     },
   });
 
@@ -167,7 +178,7 @@ export default function RecordingDetailScreen() {
             Failed to load recording
           </Text>
           <Text className="text-body text-stone-500 text-center mb-4">
-            {error instanceof Error ? error.message : 'An unexpected error occurred'}
+            {error instanceof ApiError ? error.message : 'An unexpected error occurred. Please try again.'}
           </Text>
           <Button variant="primary" onPress={() => router.back()}>
             Go Back
@@ -196,7 +207,15 @@ export default function RecordingDetailScreen() {
 
   return (
     <SafeAreaView className="screen">
-      <ScrollView className="flex-1">
+      <ScrollView
+        className="flex-1"
+        refreshControl={
+          <RefreshControl
+            refreshing={isRefetchingRecording || isRefetchingSoapNote}
+            onRefresh={handleRefresh}
+          />
+        }
+      >
         {/* Header */}
         <View className="flex-row items-center px-5 pt-5">
           <Pressable
@@ -268,7 +287,7 @@ export default function RecordingDetailScreen() {
               </Text>
               {recording.errorMessage && (
                 <Text className="text-body-sm text-danger-700 mb-3">
-                  {recording.errorMessage}
+                  {recording.errorMessage.slice(0, 200)}
                 </Text>
               )}
               <View className="self-start">
@@ -303,7 +322,7 @@ export default function RecordingDetailScreen() {
             ) : (
               <View className="py-5 items-center">
                 <Text className="text-body text-danger-700">
-                  Failed to load SOAP note. Pull down to refresh.
+                  Failed to load SOAP note. Pull down to retry.
                 </Text>
               </View>
             )}

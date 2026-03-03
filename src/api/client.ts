@@ -19,13 +19,13 @@ export class ApiError extends Error {
 }
 
 export class ApiClient {
-  private onUnauthorized?: () => void;
+  private onUnauthorized?: () => void | Promise<void>;
 
-  constructor(opts?: { onUnauthorized?: () => void }) {
+  constructor(opts?: { onUnauthorized?: () => void | Promise<void> }) {
     this.onUnauthorized = opts?.onUnauthorized;
   }
 
-  setOnUnauthorized(callback: () => void) {
+  setOnUnauthorized(callback: () => void | Promise<void>) {
     this.onUnauthorized = callback;
   }
 
@@ -70,6 +70,7 @@ export class ApiClient {
         method,
         headers: {
           'Content-Type': 'application/json',
+          'Cache-Control': 'no-store',
           ...authHeaders,
           ...signingHeaders,
         },
@@ -79,7 +80,11 @@ export class ApiClient {
 
       if (!response.ok) {
         if (response.status === 401) {
-          this.onUnauthorized?.();
+          try {
+            await this.onUnauthorized?.();
+          } catch {
+            // onUnauthorized handler failed — continue with error response
+          }
         }
 
         const errorBody = await response.json().catch(() => ({})) ?? {};
@@ -108,7 +113,7 @@ export class ApiClient {
         } else if (response.status >= 500) {
           message = 'A server error occurred. Please try again later.';
         } else {
-          message = errorBody.error || 'Something went wrong. Please try again.';
+          message = 'Something went wrong. Please try again.';
         }
 
         throw new ApiError(
@@ -123,7 +128,9 @@ export class ApiClient {
         return undefined as T;
       }
 
-      return response.json();
+      return response.json().catch(() => {
+        throw new ApiError('Invalid response format from server', response.status);
+      });
     } finally {
       clearTimeout(timeout);
     }

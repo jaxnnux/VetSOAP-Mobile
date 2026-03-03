@@ -92,8 +92,7 @@ export const recordingsApi = {
       if (!blob.size) {
         throw new Error('The recorded audio file is empty. Please try recording again.');
       }
-      const fileSizeBytes =
-        blob.size || Number(fileResponse.headers.get('content-length')) || undefined;
+      const fileSizeBytes = blob.size;
 
       // Enforce client-side file size limit
       if (fileSizeBytes && fileSizeBytes > MAX_FILE_SIZE_BYTES) {
@@ -126,9 +125,7 @@ export const recordingsApi = {
         });
 
         if (!uploadResponse.ok) {
-          throw new Error(
-            `Upload failed (${uploadResponse.status}): ${uploadResponse.statusText}`
-          );
+          throw new Error('Upload failed. Please try again.');
         }
       } finally {
         clearTimeout(timeout);

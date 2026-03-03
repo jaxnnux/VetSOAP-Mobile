@@ -8,7 +8,7 @@ const SPECIES_OPTIONS = ['Canine', 'Feline', 'Equine', 'Bovine', 'Avian', 'Exoti
 
 interface PatientFormProps {
   formData: CreateRecording;
-  onUpdate: (field: keyof CreateRecording, value: string) => void;
+  onUpdate: (field: keyof CreateRecording, value: string | undefined) => void;
   templates?: Template[];
   templatesLoading?: boolean;
 }
@@ -16,7 +16,7 @@ interface PatientFormProps {
 export function PatientForm({ formData, onUpdate, templates, templatesLoading }: PatientFormProps) {
   const handleTemplateSelect = (template: Template) => {
     Haptics.selectionAsync().catch(() => {});
-    const newId = formData.templateId === template.id ? '' : template.id;
+    const newId = formData.templateId === template.id ? undefined : template.id;
     onUpdate('templateId', newId);
 
     // Auto-fill species if the template targets exactly one species
@@ -43,7 +43,7 @@ export function PatientForm({ formData, onUpdate, templates, templatesLoading }:
               accessibilityLabel="Template selection"
             >
               <View className="flex-row gap-1.5">
-                {templates!.map((template) => {
+                {(templates ?? []).map((template) => {
                   const isSelected = formData.templateId === template.id;
                   return (
                     <Pressable
@@ -88,6 +88,9 @@ export function PatientForm({ formData, onUpdate, templates, templatesLoading }:
         value={formData.patientName}
         onChangeText={(v) => onUpdate('patientName', v)}
         placeholder="e.g., Buddy"
+        maxLength={200}
+        autoCorrect={false}
+        autoComplete="off"
       />
 
       <TextInputField
@@ -96,6 +99,9 @@ export function PatientForm({ formData, onUpdate, templates, templatesLoading }:
         value={formData.clientName || ''}
         onChangeText={(v) => onUpdate('clientName', v)}
         placeholder="e.g., John Smith"
+        maxLength={200}
+        autoCorrect={false}
+        autoComplete="off"
       />
 
       <View className="mb-3.5">
@@ -146,6 +152,9 @@ export function PatientForm({ formData, onUpdate, templates, templatesLoading }:
         value={formData.breed || ''}
         onChangeText={(v) => onUpdate('breed', v)}
         placeholder="e.g., Golden Retriever"
+        maxLength={100}
+        autoCorrect={false}
+        autoComplete="off"
       />
 
       <TextInputField
@@ -153,6 +162,7 @@ export function PatientForm({ formData, onUpdate, templates, templatesLoading }:
         value={formData.appointmentType || ''}
         onChangeText={(v) => onUpdate('appointmentType', v)}
         placeholder="e.g., Wellness Exam, Sick Visit"
+        maxLength={100}
       />
     </View>
   );

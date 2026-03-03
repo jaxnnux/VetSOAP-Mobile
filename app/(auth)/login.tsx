@@ -32,14 +32,14 @@ export default function LoginScreen() {
     // Validate email format
     const emailResult = emailSchema.safeParse(email);
     if (!emailResult.success) {
-      setError(emailResult.error.issues[0].message);
+      setError(emailResult.error.issues[0]?.message ?? 'Invalid email');
       return;
     }
 
     // Validate password length
     const passwordResult = passwordSchema.safeParse(password);
     if (!passwordResult.success) {
-      setError(passwordResult.error.issues[0].message);
+      setError(passwordResult.error.issues[0]?.message ?? 'Invalid password');
       return;
     }
 
@@ -47,7 +47,7 @@ export default function LoginScreen() {
     setIsLoading(true);
 
     try {
-      const result = await signIn(emailResult.data, password);
+      const result = await signIn(emailResult.data, passwordResult.data);
       if (result.error) {
         failedAttemptsRef.current += 1;
         if (failedAttemptsRef.current >= MAX_LOGIN_ATTEMPTS) {

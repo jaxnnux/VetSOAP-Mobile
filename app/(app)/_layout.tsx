@@ -13,10 +13,12 @@ export default function AppLayout() {
   const { isAuthenticated, isLoading, signOut } = useAuth();
 
   const handleInactivityTimeout = useCallback(() => {
+    signOut().catch(() => {});
     Alert.alert(
       'Session Expired',
       'You have been signed out due to inactivity.',
-      [{ text: 'OK', onPress: () => { signOut().catch(() => {}); } }]
+      [{ text: 'OK' }],
+      { cancelable: false }
     );
   }, [signOut]);
 

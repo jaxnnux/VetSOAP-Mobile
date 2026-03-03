@@ -1,5 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { Audio } from 'expo-av';
+import * as FileSystem from 'expo-file-system';
 
 export type RecordingState = 'idle' | 'recording' | 'paused' | 'stopped';
 
@@ -55,7 +56,12 @@ export function useAudioRecorder(): UseAudioRecorderReturn {
     }).catch(() => {});
   }, []);
 
+  const isStartingRef = useRef(false);
+
   const start = useCallback(async () => {
+    if (isStartingRef.current || state !== 'idle') return;
+    isStartingRef.current = true;
+    try {
     if (!permissionGranted) {
       const { granted } = await Audio.requestPermissionsAsync();
       if (!granted) {
@@ -70,44 +76,79 @@ export function useAudioRecorder(): UseAudioRecorderReturn {
     });
 
     const recording = new Audio.Recording();
-    await recording.prepareToRecordAsync(RECORDING_OPTIONS);
+    try {
+      await recording.prepareToRecordAsync(RECORDING_OPTIONS);
 
-    recording.setOnRecordingStatusUpdate((status) => {
-      if (status.isRecording && status.durationMillis) {
-        setDuration(Math.floor(status.durationMillis / 1000));
-      }
-    });
+      recording.setOnRecordingStatusUpdate((status) => {
+        if (status.isRecording && status.durationMillis) {
+          setDuration(Math.floor(status.durationMillis / 1000));
+        }
+      });
 
-    await recording.startAsync();
+      await recording.startAsync();
+    } catch (error) {
+      // Clean up the partially-initialized recording to avoid a zombie object
+      recording.setOnRecordingStatusUpdate(null);
+      await recording.stopAndUnloadAsync().catch(() => {});
+      throw error;
+    }
     recordingRef.current = recording;
 
     setState('recording');
     setDuration(0);
     setAudioUri(null);
-  }, [permissionGranted]);
+    } finally {
+      isStartingRef.current = false;
+    }
+  }, [permissionGranted, state]);
 
   const pause = useCallback(async () => {
     if (recordingRef.current) {
-      await recordingRef.current.pauseAsync();
-      setState('paused');
+      try {
+        await recordingRef.current.pauseAsync();
+        setState('paused');
+      } catch (error) {
+        console.error('[AudioRecorder] pauseAsync failed:', error);
+        // Native handle is broken — clean up so user can start fresh
+        recordingRef.current.setOnRecordingStatusUpdate(null);
+        await recordingRef.current.stopAndUnloadAsync().catch(() => {});
+        const uri = (() => { try { return recordingRef.current?.getURI() ?? null; } catch { return null; } })();
+        setAudioUri(uri);
+        recordingRef.current = null;
+        setState('stopped');
+        await Audio.setAudioModeAsync({ allowsRecordingIOS: false }).catch(() => {});
+      }
     }
   }, []);
 
   const resume = useCallback(async () => {
     if (recordingRef.current) {
-      await recordingRef.current.startAsync();
-      setState('recording');
+      try {
+        await recordingRef.current.startAsync();
+        setState('recording');
+      } catch (error) {
+        console.error('[AudioRecorder] startAsync (resume) failed:', error);
+        // Native handle is broken — clean up so user can start fresh
+        recordingRef.current.setOnRecordingStatusUpdate(null);
+        await recordingRef.current.stopAndUnloadAsync().catch(() => {});
+        const uri = (() => { try { return recordingRef.current?.getURI() ?? null; } catch { return null; } })();
+        setAudioUri(uri);
+        recordingRef.current = null;
+        setState('stopped');
+        await Audio.setAudioModeAsync({ allowsRecordingIOS: false }).catch(() => {});
+      }
     }
   }, []);
 
   const stop = useCallback(async () => {
     if (recordingRef.current) {
+      recordingRef.current.setOnRecordingStatusUpdate(null);
       try {
         await recordingRef.current.stopAndUnloadAsync();
       } catch (error) {
         console.error('[AudioRecorder] stopAndUnloadAsync failed:', error);
       }
-      const uri = recordingRef.current.getURI();
+      const uri = (() => { try { return recordingRef.current?.getURI() ?? null; } catch { return null; } })();
       setAudioUri(uri);
       recordingRef.current = null;
       setState('stopped');
@@ -119,18 +160,26 @@ export function useAudioRecorder(): UseAudioRecorderReturn {
   }, []);
 
   const reset = useCallback(() => {
+    if (audioUri) {
+      FileSystem.deleteAsync(audioUri, { idempotent: true }).catch(() => {});
+    }
     setState('idle');
     setDuration(0);
     setAudioUri(null);
     recordingRef.current = null;
-  }, []);
+  }, [audioUri]);
 
   // Cleanup on unmount
   useEffect(() => {
     return () => {
       if (recordingRef.current) {
         recordingRef.current.setOnRecordingStatusUpdate(null);
-        recordingRef.current.stopAndUnloadAsync().catch(() => {});
+        const uri = (() => { try { return recordingRef.current?.getURI() ?? null; } catch { return null; } })();
+        recordingRef.current.stopAndUnloadAsync().then(() => {
+          if (uri) FileSystem.deleteAsync(uri, { idempotent: true }).catch(() => {});
+        }).catch(() => {
+          if (uri) FileSystem.deleteAsync(uri, { idempotent: true }).catch(() => {});
+        });
       }
     };
   }, []);

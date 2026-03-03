@@ -41,20 +41,24 @@ export function useInactivityTimeout({
   // Track app state changes
   useEffect(() => {
     const handleAppState = (state: AppStateStatus) => {
-      if (state === 'active') {
-        // Check if we've been inactive too long while backgrounded
-        const elapsed = Date.now() - lastActivityRef.current;
-        if (elapsed >= timeoutMs) {
-          onTimeout();
-        } else {
-          resetTimer();
+      try {
+        if (state === 'active') {
+          // Check if we've been inactive too long while backgrounded
+          const elapsed = Date.now() - lastActivityRef.current;
+          if (elapsed >= timeoutMs) {
+            onTimeout();
+          } else {
+            resetTimer();
+          }
+        } else if (state === 'background') {
+          // Pause the timer; we'll check elapsed time on resume
+          if (timerRef.current) {
+            clearTimeout(timerRef.current);
+            timerRef.current = null;
+          }
         }
-      } else if (state === 'background') {
-        // Pause the timer; we'll check elapsed time on resume
-        if (timerRef.current) {
-          clearTimeout(timerRef.current);
-          timerRef.current = null;
-        }
+      } catch (error) {
+        console.error('[useInactivityTimeout] handleAppState error:', error);
       }
     };
 

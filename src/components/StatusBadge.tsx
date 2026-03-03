@@ -6,6 +6,7 @@ import Animated, {
   withRepeat,
   withTiming,
   Easing,
+  cancelAnimation,
 } from 'react-native-reanimated';
 import type { RecordingStatus } from '../types';
 
@@ -37,6 +38,7 @@ function PulsingDot({ color }: { color: string }) {
       -1,
       true
     );
+    return () => { cancelAnimation(opacity); };
   }, []);
 
   const style = useAnimatedStyle(() => ({
