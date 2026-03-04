@@ -71,6 +71,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const handleSignOut = useCallback(async () => {
     console.log('[Auth] handleSignOut: starting');
+    // Clear in-memory token immediately
+    apiClient.setToken(null);
     try {
       await supabase.auth.signOut();
     } catch (error) {
@@ -114,7 +116,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const doRefresh = async () => {
         try {
           console.log('[Auth] onUnauthorized: attempting token refresh');
-          const { error } = await supabase.auth.refreshSession();
+          const { data, error } = await supabase.auth.refreshSession();
           if (error) {
             console.log('[Auth] onUnauthorized: refresh failed, signing out');
             await handleSignOut();
@@ -122,7 +124,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             console.log('[Auth] onUnauthorized: refresh succeeded');
           }
           // If refresh succeeded, Supabase's onAuthStateChange will update the token
-        } catch {
+        } catch (e) {
           console.log('[Auth] onUnauthorized: refresh threw, signing out');
           handleSignOut().catch(() => {});
         } finally {
@@ -142,7 +144,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setSession(existingSession);
         if (existingSession.access_token) {
           sessionTimestampRef.current = Date.now();
-          secureStorage.setToken(existingSession.access_token).catch(() => {});
+          // Set in-memory token first (reliable), then persist to SecureStore (best-effort)
+          apiClient.setToken(existingSession.access_token);
           fetchUser().catch(() => {});
         }
       }
@@ -167,7 +170,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           if (newSession?.access_token) {
             sessionTimestampRef.current = Date.now();
             console.log('[Auth] session established, storing token');
-            await secureStorage.setToken(newSession.access_token);
+            // Set in-memory token immediately (reliable), then persist (best-effort)
+            apiClient.setToken(newSession.access_token);
             if (newSession.refresh_token) {
               await secureStorage.setRefreshToken(newSession.refresh_token);
             }
@@ -175,6 +179,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             console.log('[Auth] sign-in flow complete');
           } else {
             console.log('[Auth] no access_token, clearing session');
+            apiClient.setToken(null);
             await secureStorage.clearAll();
             setUser(null);
           }

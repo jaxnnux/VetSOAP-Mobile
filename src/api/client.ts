@@ -20,6 +20,8 @@ export class ApiError extends Error {
 
 export class ApiClient {
   private onUnauthorized?: () => void | Promise<void>;
+  /** In-memory token — primary source of truth. SecureStore is a fallback. */
+  private currentToken: string | null = null;
 
   constructor(opts?: { onUnauthorized?: () => void | Promise<void> }) {
     this.onUnauthorized = opts?.onUnauthorized;
@@ -29,10 +31,79 @@ export class ApiClient {
     this.onUnauthorized = callback;
   }
 
+  /**
+   * Set the access token directly (called by AuthProvider on every session change).
+   * Also persists to SecureStore as a best-effort backup.
+   */
+  setToken(token: string | null) {
+    this.currentToken = token;
+    if (token) {
+      secureStorage.setToken(token).catch(() => {});
+    }
+  }
+
   private async getAuthHeaders(): Promise<Record<string, string>> {
-    const token = await secureStorage.getToken();
+    // Prefer the in-memory token; fall back to SecureStore
+    const token = this.currentToken ?? (await secureStorage.getToken());
     if (!token) return {};
     return { Authorization: `Bearer ${token}` };
+  }
+
+  private buildErrorMessage(
+    status: number,
+    errorBody: Record<string, unknown>,
+    details: Array<{ message: string }>
+  ): string {
+    if (__DEV__) {
+      return (
+        (errorBody.error as string) ||
+        (details.length
+          ? details.map((d) => d.message).join(', ')
+          : `Request failed: ${status}`)
+      );
+    }
+    if (status === 401) return 'Your session has expired. Please sign in again.';
+    if (status === 403) return 'You do not have permission to perform this action.';
+    if (status === 404) return 'The requested resource was not found.';
+    if (status === 422 && details.length) return details.map((d) => d.message).join(', ');
+    if (status === 429) return 'Too many requests. Please try again shortly.';
+    if (status >= 500) return 'A server error occurred. Please try again later.';
+    return 'Something went wrong. Please try again.';
+  }
+
+  private async doFetch(
+    url: string,
+    method: string,
+    path: string,
+    serializedBody: string | undefined,
+    timeoutMs: number
+  ): Promise<Response> {
+    const authHeaders = await this.getAuthHeaders();
+    const signingHeaders = await getSigningHeaders(method, path, serializedBody);
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), timeoutMs);
+
+    try {
+      validateRequestUrl(url);
+
+      console.log('[ApiClient]', method, path, 'hasToken:', !!authHeaders.Authorization);
+      const response = await fetch(url, {
+        method,
+        headers: {
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-store',
+          ...authHeaders,
+          ...signingHeaders,
+        },
+        body: serializedBody,
+        signal: controller.signal,
+      });
+
+      console.log('[ApiClient]', method, path, 'status:', response.status);
+      return response;
+    } finally {
+      clearTimeout(timeout);
+    }
   }
 
   async request<T>(
@@ -57,85 +128,46 @@ export class ApiClient {
     }
 
     const serializedBody = body ? JSON.stringify(body) : undefined;
-    const authHeaders = await this.getAuthHeaders();
-    const signingHeaders = await getSigningHeaders(method, path, serializedBody);
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), timeoutMs);
+    let response = await this.doFetch(url, method, path, serializedBody, timeoutMs);
 
-    try {
-      // Validate the request targets a trusted domain over HTTPS
-      validateRequestUrl(url);
+    // On 401, attempt token refresh and retry once with fresh credentials
+    if (response.status === 401) {
+      const oldToken = this.currentToken;
 
-      console.log('[ApiClient]', method, path, 'hasToken:', !!authHeaders.Authorization);
-      const response = await fetch(url, {
-        method,
-        headers: {
-          'Content-Type': 'application/json',
-          'Cache-Control': 'no-store',
-          ...authHeaders,
-          ...signingHeaders,
-        },
-        body: serializedBody,
-        signal: controller.signal,
-      });
-
-      console.log('[ApiClient]', method, path, 'status:', response.status);
-      if (!response.ok) {
-        if (response.status === 401) {
-          try {
-            await this.onUnauthorized?.();
-          } catch {
-            // onUnauthorized handler failed — continue with error response
-          }
-        }
-
-        const errorBody = await response.json().catch(() => ({})) ?? {};
-        const details = Array.isArray(errorBody.details) ? errorBody.details : [];
-
-        // In production, use generic messages for server errors to avoid
-        // leaking internal implementation details to the client.
-        let message: string;
-        if (__DEV__) {
-          message =
-            errorBody.error ||
-            (details.length
-              ? details.map((d: { message: string }) => d.message).join(', ')
-              : `Request failed: ${response.status}`);
-        } else if (response.status === 401) {
-          message = 'Your session has expired. Please sign in again.';
-        } else if (response.status === 403) {
-          message = 'You do not have permission to perform this action.';
-        } else if (response.status === 404) {
-          message = 'The requested resource was not found.';
-        } else if (response.status === 422 && details.length) {
-          // Validation errors are safe to show
-          message = details.map((d: { message: string }) => d.message).join(', ');
-        } else if (response.status === 429) {
-          message = 'Too many requests. Please try again shortly.';
-        } else if (response.status >= 500) {
-          message = 'A server error occurred. Please try again later.';
-        } else {
-          message = 'Something went wrong. Please try again.';
-        }
-
-        throw new ApiError(
-          message,
-          response.status,
-          response.status === 429 || response.status >= 500,
-          __DEV__ ? details : undefined
-        );
+      try {
+        await this.onUnauthorized?.();
+      } catch {
+        // onUnauthorized handler failed — fall through to error
       }
+      const newToken = this.currentToken;
 
-      if (response.status === 204) {
-        return undefined as T;
+      // If the token changed after refresh, retry the request once
+      if (newToken && newToken !== oldToken) {
+        console.log('[ApiClient]', method, path, 'retrying after token refresh');
+        response = await this.doFetch(url, method, path, serializedBody, timeoutMs);
       }
-
-      return response.json().catch(() => {
-        throw new ApiError('Invalid response format from server', response.status);
-      });
-    } finally {
-      clearTimeout(timeout);
     }
+
+    if (!response.ok) {
+      const errorBody = await response.json().catch(() => ({})) ?? {};
+      const details = Array.isArray(errorBody.details) ? errorBody.details : [];
+      const message = this.buildErrorMessage(response.status, errorBody, details);
+
+      throw new ApiError(
+        message,
+        response.status,
+        response.status === 429 || response.status >= 500,
+        __DEV__ ? details : undefined
+      );
+    }
+
+    if (response.status === 204) {
+      return undefined as T;
+    }
+
+    return response.json().catch(() => {
+      throw new ApiError('Invalid response format from server', response.status);
+    });
   }
 
   get<T>(path: string, params?: Record<string, string | number | undefined>) {

@@ -1,3 +1,8 @@
+import {
+  getInfoAsync,
+  uploadAsync,
+  FileSystemUploadType,
+} from 'expo-file-system/legacy';
 import { apiClient } from './client';
 import type {
   Recording,
@@ -83,19 +88,17 @@ export const recordingsApi = {
     let r2UploadComplete = false;
 
     try {
-      // Read local file to get blob and size
-      const fileResponse = await fetch(fileUri);
-      if (!fileResponse.ok) {
+      // Read local file info (fetch() doesn't support file:// URIs on Android)
+      const fileInfo = await getInfoAsync(fileUri);
+      if (!fileInfo.exists) {
         throw new Error('Failed to read the recorded audio file. Please try recording again.');
       }
-      const blob = await fileResponse.blob();
-      if (!blob.size) {
+      const fileSizeBytes = fileInfo.size ?? 0;
+      if (!fileSizeBytes) {
         throw new Error('The recorded audio file is empty. Please try recording again.');
       }
-      const fileSizeBytes = blob.size;
-
       // Enforce client-side file size limit
-      if (fileSizeBytes && fileSizeBytes > MAX_FILE_SIZE_BYTES) {
+      if (fileSizeBytes > MAX_FILE_SIZE_BYTES) {
         throw new Error(
           `File too large (${Math.round(fileSizeBytes / 1024 / 1024)}MB). Maximum allowed size is 500MB.`
         );
@@ -108,33 +111,25 @@ export const recordingsApi = {
         contentType,
         fileSizeBytes
       );
-
       // Validate the presigned upload URL targets a trusted storage domain
       validateUploadUrl(uploadUrl);
 
-      // Step 3: Upload to R2 with timeout
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), UPLOAD_TIMEOUT_MS);
+      // Step 3: Upload to R2 using uploadAsync (supports file:// URIs)
+      const uploadResult = await uploadAsync(uploadUrl, fileUri, {
+        httpMethod: 'PUT',
+        uploadType: FileSystemUploadType.BINARY_CONTENT,
+        headers: { 'Content-Type': contentType },
+      });
 
-      try {
-        const uploadResponse = await fetch(uploadUrl, {
-          method: 'PUT',
-          body: blob,
-          headers: { 'Content-Type': contentType },
-          signal: controller.signal,
-        });
-
-        if (!uploadResponse.ok) {
-          throw new Error('Upload failed. Please try again.');
-        }
-      } finally {
-        clearTimeout(timeout);
+      if (uploadResult.status < 200 || uploadResult.status >= 300) {
+        throw new Error(`Upload to storage failed (HTTP ${uploadResult.status}). Please try again.`);
       }
 
       r2UploadComplete = true;
 
       // Step 4: Confirm upload and trigger processing
-      return await this.confirmUpload(recording.id, fileKey);
+      const confirmed = await this.confirmUpload(recording.id, fileKey);
+      return confirmed;
     } catch (error) {
       // Only delete if the file hasn't been uploaded to R2 yet.
       // If R2 upload succeeded but confirm failed, leave the recording

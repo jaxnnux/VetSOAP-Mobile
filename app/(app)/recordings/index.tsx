@@ -51,6 +51,13 @@ export default function RecordingsListScreen() {
       const { page, totalPages } = lastPage.pagination;
       return page < totalPages ? page + 1 : undefined;
     },
+    refetchInterval: (query) => {
+      const allRecordings = query.state.data?.pages.flatMap((p) => p.data);
+      const hasProcessing = allRecordings?.some(
+        (r) => !['completed', 'failed'].includes(r.status)
+      );
+      return hasProcessing ? 5000 : false;
+    },
   });
 
   const recordings = data?.pages.flatMap((page) => page.data) ?? [];

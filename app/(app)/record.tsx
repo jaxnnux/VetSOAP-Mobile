@@ -125,7 +125,7 @@ export default function RecordScreen() {
     onError: (error: Error) => {
       Alert.alert(
         'Upload Failed',
-        error instanceof ApiError ? error.message : 'Failed to process recording. Please try again.'
+        error.message || 'Failed to process recording. Please try again.'
       );
     },
   });

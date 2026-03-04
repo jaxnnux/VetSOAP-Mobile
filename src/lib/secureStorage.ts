@@ -1,9 +1,9 @@
 import * as SecureStore from 'expo-secure-store';
 
 const KEYS = {
-  ACCESS_TOKEN: 'vetsoap:access_token',
-  REFRESH_TOKEN: 'vetsoap:refresh_token',
-  SESSION: 'vetsoap:session',
+  ACCESS_TOKEN: 'vetsoap_access_token',
+  REFRESH_TOKEN: 'vetsoap_refresh_token',
+  SESSION: 'vetsoap_session',
 } as const;
 
 export const secureStorage = {
@@ -68,6 +68,11 @@ export const secureStorage = {
     try { await SecureStore.deleteItemAsync(KEYS.ACCESS_TOKEN); } catch { /* ignore */ }
     try { await SecureStore.deleteItemAsync(KEYS.REFRESH_TOKEN); } catch { /* ignore */ }
     try { await SecureStore.deleteItemAsync(KEYS.SESSION); } catch { /* ignore */ }
+    try { await SecureStore.deleteItemAsync('vetsoap_biometric_enabled'); } catch { /* ignore */ }
+    // Clean up old colon-based keys from previous versions
+    try { await SecureStore.deleteItemAsync('vetsoap:access_token'); } catch { /* ignore */ }
+    try { await SecureStore.deleteItemAsync('vetsoap:refresh_token'); } catch { /* ignore */ }
+    try { await SecureStore.deleteItemAsync('vetsoap:session'); } catch { /* ignore */ }
     try { await SecureStore.deleteItemAsync('vetsoap:biometric_enabled'); } catch { /* ignore */ }
   },
 };

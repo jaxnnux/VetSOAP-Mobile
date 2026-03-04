@@ -48,6 +48,7 @@ export function useAudioRecorder(): UseAudioRecorderReturn {
   const [permissionGranted, setPermissionGranted] = useState(false);
 
   const recordingRef = useRef<Audio.Recording | null>(null);
+  const stoppingRef = useRef(false);
 
   // Request permissions on mount
   useEffect(() => {
@@ -111,8 +112,8 @@ export function useAudioRecorder(): UseAudioRecorderReturn {
         console.error('[AudioRecorder] pauseAsync failed:', error);
         // Native handle is broken — clean up so user can start fresh
         recordingRef.current.setOnRecordingStatusUpdate(null);
-        await recordingRef.current.stopAndUnloadAsync().catch(() => {});
         const uri = (() => { try { return recordingRef.current?.getURI() ?? null; } catch { return null; } })();
+        await recordingRef.current.stopAndUnloadAsync().catch(() => {});
         setAudioUri(uri);
         recordingRef.current = null;
         setState('stopped');
@@ -130,8 +131,8 @@ export function useAudioRecorder(): UseAudioRecorderReturn {
         console.error('[AudioRecorder] startAsync (resume) failed:', error);
         // Native handle is broken — clean up so user can start fresh
         recordingRef.current.setOnRecordingStatusUpdate(null);
-        await recordingRef.current.stopAndUnloadAsync().catch(() => {});
         const uri = (() => { try { return recordingRef.current?.getURI() ?? null; } catch { return null; } })();
+        await recordingRef.current.stopAndUnloadAsync().catch(() => {});
         setAudioUri(uri);
         recordingRef.current = null;
         setState('stopped');
@@ -141,14 +142,15 @@ export function useAudioRecorder(): UseAudioRecorderReturn {
   }, []);
 
   const stop = useCallback(async () => {
-    if (recordingRef.current) {
+    if (recordingRef.current && !stoppingRef.current) {
+      stoppingRef.current = true;
       recordingRef.current.setOnRecordingStatusUpdate(null);
+      const uri = (() => { try { return recordingRef.current?.getURI() ?? null; } catch { return null; } })();
       try {
         await recordingRef.current.stopAndUnloadAsync();
       } catch (error) {
         console.error('[AudioRecorder] stopAndUnloadAsync failed:', error);
       }
-      const uri = (() => { try { return recordingRef.current?.getURI() ?? null; } catch { return null; } })();
       setAudioUri(uri);
       recordingRef.current = null;
       setState('stopped');
@@ -167,12 +169,14 @@ export function useAudioRecorder(): UseAudioRecorderReturn {
     setDuration(0);
     setAudioUri(null);
     recordingRef.current = null;
+    stoppingRef.current = false;
   }, [audioUri]);
 
   // Cleanup on unmount
   useEffect(() => {
     return () => {
-      if (recordingRef.current) {
+      if (recordingRef.current && !stoppingRef.current) {
+        stoppingRef.current = true;
         recordingRef.current.setOnRecordingStatusUpdate(null);
         const uri = (() => { try { return recordingRef.current?.getURI() ?? null; } catch { return null; } })();
         recordingRef.current.stopAndUnloadAsync().then(() => {

@@ -144,6 +144,7 @@ export default function RecordingDetailScreen() {
   const {
     data: soapNote,
     isLoading: isSoapNoteLoading,
+    isError: isSoapNoteError,
     refetch: refetchSoapNote,
     isRefetching: isRefetchingSoapNote,
   } = useQuery({
@@ -160,6 +161,7 @@ export default function RecordingDetailScreen() {
   const retryMutation = useMutation({
     mutationFn: () => recordingsApi.retry(id!),
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['recordings'] });
       queryClient.invalidateQueries({ queryKey: ['recording', id] });
     },
     onError: (error: Error) => {
@@ -180,9 +182,14 @@ export default function RecordingDetailScreen() {
           <Text className="text-body text-stone-500 text-center mb-4">
             {error instanceof ApiError ? error.message : 'An unexpected error occurred. Please try again.'}
           </Text>
-          <Button variant="primary" onPress={() => router.back()}>
-            Go Back
-          </Button>
+          <View className="flex-row gap-3">
+            <Button variant="secondary" onPress={() => { refetchRecording().catch(() => {}); }}>
+              Retry
+            </Button>
+            <Button variant="primary" onPress={() => router.back()}>
+              Go Back
+            </Button>
+          </View>
         </Animated.View>
       </SafeAreaView>
     );
@@ -317,12 +324,21 @@ export default function RecordingDetailScreen() {
                   </View>
                 ))}
               </View>
+            ) : isSoapNoteError ? (
+              <View className="py-5 items-center">
+                <Text className="text-body text-danger-700 mb-3">
+                  Failed to load SOAP note.
+                </Text>
+                <Button variant="secondary" size="sm" onPress={() => { refetchSoapNote().catch(() => {}); }}>
+                  Retry
+                </Button>
+              </View>
             ) : soapNote ? (
               <SoapNoteView soapNote={soapNote} />
             ) : (
               <View className="py-5 items-center">
-                <Text className="text-body text-danger-700">
-                  Failed to load SOAP note. Pull down to retry.
+                <Text className="text-body text-stone-500">
+                  SOAP note not available.
                 </Text>
               </View>
             )}

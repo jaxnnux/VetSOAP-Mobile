@@ -31,6 +31,13 @@ export default function HomeScreen() {
     queryKey: ['recordings', 'recent'],
     queryFn: () => recordingsApi.list({ limit: 5, sortBy: 'createdAt', sortOrder: 'desc' }),
     enabled: !!user,  // Don't fire until fetchUser has completed
+    refetchInterval: (query) => {
+      const allRecordings = query.state.data?.data;
+      const hasProcessing = allRecordings?.some(
+        (r) => !['completed', 'failed'].includes(r.status)
+      );
+      return hasProcessing ? 5000 : false;
+    },
   });
 
   const recordings = data?.data ?? [];
