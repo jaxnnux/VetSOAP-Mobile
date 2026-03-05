@@ -128,7 +128,7 @@ export default function RecordScreen() {
     },
   });
 
-  const updateField = (field: keyof CreateRecording, value: string | undefined) => {
+  const updateField = (field: keyof CreateRecording, value: string | boolean | undefined) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
 

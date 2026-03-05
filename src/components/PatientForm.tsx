@@ -9,7 +9,7 @@ const APPOINTMENT_TYPE_OPTIONS = ['Wellness Exam', 'Sick Visit', 'Urgent/Emergen
 
 interface PatientFormProps {
   formData: CreateRecording;
-  onUpdate: (field: keyof CreateRecording, value: string | undefined) => void;
+  onUpdate: (field: keyof CreateRecording, value: string | boolean | undefined) => void;
   templates?: Template[];
   templatesLoading?: boolean;
 }
@@ -196,6 +196,39 @@ export function PatientForm({ formData, onUpdate, templates, templatesLoading }:
           })}
         </View>
       </View>
+
+      {/* Foreign Language Toggle */}
+      <Pressable
+        onPress={() => {
+          Haptics.selectionAsync().catch(() => {});
+          onUpdate('foreignLanguage', !formData.foreignLanguage);
+        }}
+        accessibilityRole="switch"
+        accessibilityState={{ checked: !!formData.foreignLanguage }}
+        accessibilityLabel="Foreign Language"
+        accessibilityHint="Enable if a non-English language was spoken during this exam"
+        className="flex-row items-center justify-between py-3 mb-3.5"
+      >
+        <View className="flex-1 mr-3">
+          <Text className="text-body-sm font-medium text-stone-700">
+            Foreign Language
+          </Text>
+          <Text className="text-body-xs text-stone-500 mt-0.5">
+            Enable if a non-English language was spoken during this exam
+          </Text>
+        </View>
+        <View
+          className={`w-[44px] h-[24px] rounded-full justify-center px-[2px] ${
+            formData.foreignLanguage ? 'bg-brand-500' : 'bg-stone-300'
+          }`}
+        >
+          <View
+            className={`w-[20px] h-[20px] rounded-full bg-white ${
+              formData.foreignLanguage ? 'self-end' : 'self-start'
+            }`}
+          />
+        </View>
+      </Pressable>
     </View>
   );
 }

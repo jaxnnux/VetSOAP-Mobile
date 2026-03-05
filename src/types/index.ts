@@ -29,6 +29,7 @@ export interface Recording {
   processingStartedAt: string | null;
   processingCompletedAt: string | null;
   triggerJobId: string | null;
+  foreignLanguage: boolean;
   templateId: string | null;
   createdAt: string;
   updatedAt: string;
@@ -41,6 +42,7 @@ export interface CreateRecording {
   breed?: string;
   appointmentType?: string;
   templateId?: string;
+  foreignLanguage?: boolean;
 }
 
 export interface SoapSection {
