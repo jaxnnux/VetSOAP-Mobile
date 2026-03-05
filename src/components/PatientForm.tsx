@@ -5,6 +5,7 @@ import { TextInputField } from './ui/TextInputField';
 import type { CreateRecording, Template } from '../types';
 
 const SPECIES_OPTIONS = ['Canine', 'Feline'];
+const APPOINTMENT_TYPE_OPTIONS = ['Wellness Exam', 'Sick Visit', 'Urgent/Emergency', 'Follow-up'];
 
 interface PatientFormProps {
   formData: CreateRecording;
@@ -155,13 +156,46 @@ export function PatientForm({ formData, onUpdate, templates, templatesLoading }:
         autoComplete="off"
       />
 
-      <TextInputField
-        label="Appointment Type"
-        value={formData.appointmentType || ''}
-        onChangeText={(v) => onUpdate('appointmentType', v)}
-        placeholder="e.g., Wellness Exam, Sick Visit"
-        maxLength={100}
-      />
+      <View className="mb-3.5">
+        <Text className="text-body-sm font-medium text-stone-700 mb-1.5">
+          Appointment Type
+        </Text>
+        <View
+          className="flex-row flex-wrap gap-2"
+          accessibilityRole="radiogroup"
+          accessibilityLabel="Appointment type selection"
+        >
+          {APPOINTMENT_TYPE_OPTIONS.map((type) => {
+            const isSelected = formData.appointmentType === type;
+            return (
+              <Pressable
+                key={type}
+                onPress={() => {
+                  Haptics.selectionAsync().catch(() => {});
+                  onUpdate('appointmentType', isSelected ? '' : type);
+                }}
+                hitSlop={8}
+                accessibilityRole="radio"
+                accessibilityState={{ selected: isSelected }}
+                accessibilityLabel={type}
+                className={`px-4 min-h-[44px] items-center justify-center rounded-pill border ${
+                  isSelected
+                    ? 'border-brand-500 bg-brand-500'
+                    : 'border-stone-300 bg-white'
+                }`}
+              >
+                <Text
+                  className={`text-body-sm font-medium ${
+                    isSelected ? 'text-white' : 'text-stone-700'
+                  }`}
+                >
+                  {type}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
+      </View>
     </View>
   );
 }

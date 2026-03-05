@@ -6,7 +6,8 @@
     "start": "expo start",
     "android": "expo start --android",
     "ios": "expo start --ios",
-    "web": "expo start --web"
+    "web": "expo start --web",
+    "lint": "expo lint"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.98.0",
@@ -43,6 +44,8 @@
   "devDependencies": {
     "@types/react": "~19.2.2",
     "babel-plugin-transform-remove-console": "^6.9.4",
+    "eslint": "^9.0.0",
+    "eslint-config-expo": "~55.0.0",
     "expo-dev-client": "~55.0.10",
     "typescript": "~5.9.2"
   },
