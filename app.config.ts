@@ -47,7 +47,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
   return {
     ...config,
     name: 'Captivet',
-    slug: 'captivet',
+    slug: 'vetsoap-mobile',
     scheme: 'captivet',
     version: '1.0.0',
     orientation: 'default',
