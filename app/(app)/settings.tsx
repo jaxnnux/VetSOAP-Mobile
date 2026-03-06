@@ -156,7 +156,7 @@ export default function SettingsScreen() {
 
         {/* App Info */}
         <Text className="text-caption text-stone-400 text-center mt-10">
-          VetSOAP Mobile v{Constants.expoConfig?.version || '1.0.0'}
+          Captivet v{Constants.expoConfig?.version || '1.0.0'}
         </Text>
       </View>
     </SafeAreaView>

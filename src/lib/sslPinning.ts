@@ -1,5 +1,5 @@
 /**
- * SSL Certificate Pinning for VetSOAP Mobile
+ * SSL Certificate Pinning for Captivet Mobile
  *
  * In Expo managed workflow, we cannot use native certificate pinning libraries
  * directly. Instead, we implement a domain-allowlist approach that:

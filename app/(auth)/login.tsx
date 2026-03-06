@@ -78,13 +78,13 @@ export default function LoginScreen() {
         {/* Logo / Brand */}
         <Animated.View entering={FadeInDown.duration(500)} className="items-center mb-10">
           <View className="w-16 h-16 rounded-2xl bg-brand-500 justify-center items-center mb-4 shadow-card-md">
-            <Text className="text-[28px] text-white font-bold">V</Text>
+            <Text className="text-[28px] text-white font-bold">C</Text>
           </View>
           <Text
             className="text-display font-bold text-stone-900"
             accessibilityRole="header"
           >
-            VetSOAP Mobile
+            Captivet
           </Text>
           <Text className="text-body text-stone-500 mt-1">
             Sign in to your account

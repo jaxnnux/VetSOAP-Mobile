@@ -128,12 +128,12 @@ export function AppLockGuard({ children }: AppLockGuardProps) {
             marginBottom: 16,
           }}
         >
-          <Text style={{ fontSize: 28, color: '#fff', fontWeight: 'bold' }}>V</Text>
+          <Text style={{ fontSize: 28, color: '#fff', fontWeight: 'bold' }}>C</Text>
         </View>
         <Text
           style={{ fontSize: 18, fontWeight: 'bold', color: '#1c1917', marginBottom: 8 }}
         >
-          VetSOAP Locked
+          Captivet Locked
         </Text>
         <Text
           style={{

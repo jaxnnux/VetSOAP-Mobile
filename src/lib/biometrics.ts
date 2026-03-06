@@ -1,7 +1,7 @@
 import * as LocalAuthentication from 'expo-local-authentication';
 import * as SecureStore from 'expo-secure-store';
 
-const BIOMETRIC_ENABLED_KEY = 'vetsoap_biometric_enabled';
+const BIOMETRIC_ENABLED_KEY = 'captivet_biometric_enabled';
 
 export const biometrics = {
   async isAvailable(): Promise<boolean> {
@@ -55,7 +55,7 @@ export const biometrics = {
     }
   },
 
-  async authenticate(reason = 'Authenticate to access VetSOAP'): Promise<boolean> {
+  async authenticate(reason = 'Authenticate to access Captivet'): Promise<boolean> {
     try {
       const result = await LocalAuthentication.authenticateAsync({
         promptMessage: reason,

@@ -10,7 +10,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
       'expo-av',
       {
         microphonePermission:
-          'Allow VetSOAP to access your microphone to record appointments.',
+          'Allow Captivet to access your microphone to record appointments.',
       },
     ],
     'expo-secure-store',
@@ -18,7 +18,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
       'expo-local-authentication',
       {
         faceIDPermission:
-          'Allow VetSOAP to use Face ID to secure your account.',
+          'Allow Captivet to use Face ID to secure your account.',
       },
     ],
     // Android: disable cleartext (HTTP) traffic in production,
@@ -46,9 +46,9 @@ export default ({ config }: ConfigContext): ExpoConfig => {
 
   return {
     ...config,
-    name: 'VetSOAP Mobile',
-    slug: 'vetsoap-mobile',
-    scheme: 'vetsoap-mobile',
+    name: 'Captivet',
+    slug: 'captivet',
+    scheme: 'captivet',
     version: '1.0.0',
     orientation: 'default',
     icon: './assets/icon.png',
@@ -60,12 +60,12 @@ export default ({ config }: ConfigContext): ExpoConfig => {
     },
     ios: {
       supportsTablet: true,
-      bundleIdentifier: 'com.vetsoap.mobile',
+      bundleIdentifier: 'com.captivet.mobile',
       infoPlist: {
         NSMicrophoneUsageDescription:
-          'VetSOAP needs microphone access to record veterinary appointments.',
+          'Captivet needs microphone access to record veterinary appointments.',
         NSFaceIDUsageDescription:
-          'Allow VetSOAP to use Face ID to secure your account.',
+          'Allow Captivet to use Face ID to secure your account.',
         // Enforce App Transport Security: require HTTPS for all connections
         NSAppTransportSecurity: IS_DEV
           ? undefined // Use Expo defaults in dev (allows localhost)
@@ -76,7 +76,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
       },
     },
     android: {
-      package: 'com.vetsoap.mobile',
+      package: 'com.captivet.mobile',
       adaptiveIcon: {
         backgroundColor: '#0d8775',
         foregroundImage: './assets/android-icon-foreground.png',

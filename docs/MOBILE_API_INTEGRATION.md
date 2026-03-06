@@ -1,19 +1,19 @@
-# VetSOAP Mobile — API Integration Guide
+# Captivet Mobile — API Integration Guide
 
 ## Overview
 
-VetSOAP Mobile is a lightweight recording client. Its only job is to:
+Captivet Mobile is a lightweight recording client. Its only job is to:
 
 1. Authenticate the user
 2. Record an appointment (audio)
-3. Upload the recording to the VetSOAP Connect API
+3. Upload the recording to the Captivet Connect API
 4. Poll for status and display the resulting SOAP note
 
-All transcription (Deepgram) and AI SOAP note generation (Google Gemini) happens server-side in VetSOAP Connect. The mobile app never touches those services directly.
+All transcription (Deepgram) and AI SOAP note generation (Google Gemini) happens server-side in Captivet Connect. The mobile app never touches those services directly.
 
 ```
 ┌─────────────────────┐         ┌─────────────────────────────────────────┐
-│   VetSOAP Mobile    │         │        VetSOAP Connect (Railway)        │
+│   Captivet Mobile    │         │        Captivet Connect (Railway)        │
 │                     │         │                                         │
 │  Record audio (.m4a)│         │  Express API ──► Trigger.dev Jobs       │
 │  Upload to R2       │ ──────► │                    │                    │
@@ -63,8 +63,8 @@ Every database query is scoped by `organizationId`, so users can only access the
 
 | Key | Purpose |
 |-----|---------|
-| `vetsoap:access_token` | Supabase JWT for API calls |
-| `vetsoap:refresh_token` | Used to refresh expired JWTs |
+| `captivet:access_token` | Supabase JWT for API calls |
+| `captivet:refresh_token` | Used to refresh expired JWTs |
 
 Supabase handles automatic token refresh via `autoRefreshToken: true`.
 
@@ -461,7 +461,7 @@ EXPO_PUBLIC_SUPABASE_ANON_KEY=<supabase-anon-key>
 R2_ENDPOINT=https://<account-id>.r2.cloudflarestorage.com
 R2_ACCESS_KEY_ID=<r2-access-key>
 R2_SECRET_ACCESS_KEY=<r2-secret-key>
-R2_BUCKET_NAME=vetsoap-recordings
+R2_BUCKET_NAME=captivet-recordings
 ```
 
 ---
