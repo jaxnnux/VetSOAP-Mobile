@@ -1,32 +1,13 @@
-import React, { useCallback } from 'react';
+import React from 'react';
 import { Redirect, Tabs } from 'expo-router';
 import { useAuth } from '../../src/hooks/useAuth';
-import { View, ActivityIndicator, Alert } from 'react-native';
+import { View, ActivityIndicator } from 'react-native';
 import { Home, Mic, FileText } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import { AppLockGuard } from '../../src/components/AppLockGuard';
-import { useInactivityTimeout } from '../../src/hooks/useInactivityTimeout';
-
-const INACTIVITY_TIMEOUT_MS = 15 * 60 * 1000; // 15 minutes
 
 export default function AppLayout() {
-  const { isAuthenticated, isLoading, signOut } = useAuth();
-
-  const handleInactivityTimeout = useCallback(() => {
-    signOut().catch(() => {});
-    Alert.alert(
-      'Session Expired',
-      'You have been signed out due to inactivity.',
-      [{ text: 'OK' }],
-      { cancelable: false }
-    );
-  }, [signOut]);
-
-  const { panHandlers } = useInactivityTimeout({
-    timeoutMs: INACTIVITY_TIMEOUT_MS,
-    onTimeout: handleInactivityTimeout,
-    enabled: isAuthenticated,
-  });
+  const { isAuthenticated, isLoading } = useAuth();
 
   console.log('[AppLayout] render: isLoading=', isLoading, 'isAuthenticated=', isAuthenticated);
 
@@ -45,7 +26,7 @@ export default function AppLayout() {
 
   return (
     <AppLockGuard>
-    <View style={{ flex: 1 }} {...panHandlers}>
+    <View style={{ flex: 1 }}>
     <Tabs
       screenOptions={{
         headerShown: false,

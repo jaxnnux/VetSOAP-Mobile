@@ -87,7 +87,7 @@ export default function LoginScreen() {
             Captivet
           </Text>
           <Text className="text-body text-stone-500 mt-1">
-            Sign in to your account
+            Sign into your Account
           </Text>
         </Animated.View>
 
@@ -132,7 +132,7 @@ export default function LoginScreen() {
               size="lg"
               onPress={handleSignIn}
               loading={isLoading}
-              accessibilityLabel="Sign in to your account"
+              accessibilityLabel="Sign into your Account"
             >
               Sign In
             </Button>
