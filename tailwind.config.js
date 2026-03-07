@@ -84,6 +84,10 @@ module.exports = {
         pill: '9999px',
         badge: '12px',
       },
+      screens: {
+        'tablet': '600px',
+        'tablet-lg': '800px',
+      },
       boxShadow: {
         card: '0 1px 3px rgba(0,0,0,0.08)',
         'card-md': '0 4px 12px rgba(0,0,0,0.10)',
