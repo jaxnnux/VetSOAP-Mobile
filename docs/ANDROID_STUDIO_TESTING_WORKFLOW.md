@@ -838,6 +838,151 @@ To enable microphone in the emulator:
 
 ---
 
+## 11. Google Play Store Submission & Testing Tracks
+
+### Overview
+
+Google Play provides four release tracks, from most private to fully public:
+
+| Track | Audience | Purpose |
+|-------|----------|---------|
+| **Internal testing** | Up to 100 hand-picked testers | Quick iteration, no review delay |
+| **Closed testing** | Invite-only via email lists or Google Groups | Beta testing with a wider audience |
+| **Open testing** | Anyone can opt in via a Play Store link | Public beta, gathers broader feedback |
+| **Production** | All Play Store users | Full public release |
+
+For Captivet, the recommended path is: **Internal testing → Closed testing → Production**.
+
+### 11.1 Building for the Play Store
+
+Production builds must be AAB (Android App Bundle) format — not APK. This is already configured in `eas.json`:
+
+```bash
+# Build a production AAB
+eas build --profile production --platform android
+```
+
+Key differences from preview APK builds:
+- Output is `.aab` (not `.apk`)
+- Google Play re-signs the app with their key (Play App Signing)
+- ProGuard/R8 minification is enabled
+- Cleartext (HTTP) traffic is blocked
+- Version code auto-increments via EAS remote versioning
+
+### 11.2 Submitting via EAS (automated)
+
+After setting up the service account (see `docs/GOOGLE_PLAY_SERVICE_ACCOUNT_SETUP.md`):
+
+```bash
+# Submit the latest production build to internal testing
+eas submit --platform android --profile production
+
+# Or build and submit in one step
+eas build --profile production --platform android && eas submit --platform android --profile production
+```
+
+The submit profile is configured in `eas.json`:
+
+```json
+"submit": {
+  "production": {
+    "android": {
+      "serviceAccountKeyPath": "./play-service-account.json",
+      "track": "internal"
+    }
+  }
+}
+```
+
+To change the target track, update `"track"` to `"alpha"` (closed), `"beta"` (open), or `"production"`.
+
+### 11.3 Submitting manually
+
+1. Download the `.aab` from the EAS build dashboard (or the URL printed after `eas build`)
+2. Go to Google Play Console → Captivet → **Testing** → **Internal testing**
+3. Click **"Create new release"**
+4. Upload the `.aab` file
+5. Add release notes (what changed in this version)
+6. Click **"Review release"** → **"Start rollout to Internal testing"**
+
+### 11.4 Setting up internal testers
+
+1. Play Console → Captivet → **Testing** → **Internal testing** → **Testers** tab
+2. Click **"Create email list"**
+3. Name the list (e.g., "Captivet Team")
+4. Add tester email addresses (must be Google accounts — Gmail or Google Workspace)
+5. Click **Save changes**
+6. Copy the **opt-in link** from the Testers tab — share this with testers
+7. Testers click the link, accept the invite, then can install from the Play Store
+
+Important notes:
+- Internal testing has **no Google review** — releases are available within minutes
+- Maximum 100 testers per internal testing track
+- Testers must use a Google account that matches the email you added
+- Testers install via the Play Store, so they get automatic updates when you push new releases
+- If a tester already has a sideloaded APK installed, they should uninstall it first (different signing key)
+
+### 11.5 Promoting between tracks
+
+When you're confident in a release, promote it to the next track:
+
+1. Play Console → Captivet → **Testing** → **Internal testing** → **Releases** tab
+2. Find the release → click **"Promote release"**
+3. Select the target track (Closed testing, Open testing, or Production)
+4. Add/update release notes for the new audience
+5. Click **"Review release"** → **"Start rollout"**
+
+Or via EAS — rebuild and submit with a different track:
+
+```bash
+# Edit eas.json to change track, or override at command line:
+eas submit --platform android --profile production
+```
+
+### 11.6 Play Store listing requirements
+
+Before you can roll out to any public track (open testing or production), the Play Console requires:
+
+| Requirement | Details |
+|-------------|---------|
+| **App icon** | 512 x 512 px, PNG, 32-bit with alpha |
+| **Feature graphic** | 1024 x 500 px, JPG or PNG |
+| **Screenshots** | Min 2 per device type (phone). Min size 320px, max 3840px on any side |
+| **Short description** | Up to 80 characters |
+| **Full description** | Up to 4000 characters |
+| **Privacy policy URL** | Must be a publicly accessible URL — required for apps that access sensitive data (microphone) |
+| **App category** | Business or Medical (pick the best fit) |
+| **Contact email** | Displayed on the store listing |
+| **Content rating** | Complete the IARC content rating questionnaire in Play Console |
+| **Data safety** | Complete the data safety form (declare microphone usage, data collection, server storage) |
+| **Target audience** | Declare target age group (18+ for a professional veterinary app) |
+| **Ads declaration** | Declare whether the app contains ads (no for Captivet) |
+
+These are not required for internal testing, but must be completed before promoting to production.
+
+### 11.7 Versioning strategy
+
+The project uses EAS remote versioning (`appVersionSource: "remote"` in `eas.json`). This means:
+
+- **`version`** in `app.config.ts` is the user-facing version string (e.g., `"1.0.0"`)
+- **`versionCode`** is managed by EAS and auto-increments with each production build
+- You don't need to manually bump `versionCode` — EAS handles it
+- To bump the user-facing version (e.g., for a feature release), update `version` in `app.config.ts`
+
+Google Play requires each uploaded AAB to have a **strictly higher** `versionCode` than any previously uploaded build. EAS remote versioning guarantees this.
+
+### 11.8 Common issues
+
+| Issue | Cause | Fix |
+|-------|-------|-----|
+| "Version code already exists" | Uploaded an AAB with same versionCode as a previous upload | EAS remote versioning prevents this; if manual, bump `versionCode` |
+| "App signing key mismatch" | Uploaded with a different keystore than the first upload | You must use the same keystore for all uploads, or enroll in Play App Signing and use an upload key |
+| Testers can't find the app | They haven't accepted the opt-in link, or used a different Google account | Re-share the opt-in link, verify the email matches |
+| "This app is not available" on tester's device | Device doesn't meet target SDK or hardware requirements | Check `minSdkVersion` and required permissions |
+| EAS submit permission denied | Service account not granted access, or API not yet propagated | Wait up to 36 hours after granting access; verify Admin role in Play Console |
+
+---
+
 ## Quick Reference Card
 
 ### Common ADB commands for Captivet testing

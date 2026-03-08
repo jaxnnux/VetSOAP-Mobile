@@ -37,6 +37,8 @@ firebase-debug.log
 
 # sensitive config (credentials, keys)
 credentials.json
+play-service-account.json
+*-service-account*.json
 .gitignore.d/
 .npmrc
 
