@@ -60,28 +60,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const fetchUser = useCallback(async () => {
     try {
-      console.log('[Auth] fetchUser: requesting /auth/me');
+      if (__DEV__) console.log('[Auth] fetchUser: requesting /auth/me');
       const body = await apiClient.get<{ user: User }>('/auth/me');
-      console.log('[Auth] fetchUser: success, user:', body.user?.email ?? 'null');
+      if (__DEV__) console.log('[Auth] fetchUser: success, user:', body.user?.email ?? 'null');
       setUser(body.user ?? null);
     } catch (error) {
-      console.log('[Auth] fetchUser: failed', error);
+      if (__DEV__) console.log('[Auth] fetchUser: failed', error);
     }
   }, []);
 
   const handleSignOut = useCallback(async () => {
-    console.log('[Auth] handleSignOut: starting');
+    if (__DEV__) console.log('[Auth] handleSignOut: starting');
     // Clear in-memory token immediately
     apiClient.setToken(null);
     try {
       await supabase.auth.signOut();
     } catch (error) {
-      console.error('[Auth] supabase.auth.signOut failed:', error);
+      if (__DEV__) console.error('[Auth] supabase.auth.signOut failed:', error);
     }
     try {
       await secureStorage.clearAll();
     } catch (error) {
-      console.error('[Auth] clearAll failed:', error);
+      if (__DEV__) console.error('[Auth] clearAll failed:', error);
     }
     // Clear cached PHI from React Query
     queryClient.clear();
@@ -98,12 +98,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     apiClient.setOnUnauthorized(async () => {
       const sessionAge = Date.now() - sessionTimestampRef.current;
-      console.log('[Auth] onUnauthorized fired, session age:', sessionAge, 'ms');
+      if (__DEV__) console.log('[Auth] onUnauthorized fired, session age:', sessionAge, 'ms');
 
       // Don't sign out if the session was just established — the 401 is
       // likely from a stale request that was in-flight before sign-in.
       if (sessionAge < 10_000) {
-        console.log('[Auth] onUnauthorized: ignoring, session too fresh (<10s)');
+        if (__DEV__) console.log('[Auth] onUnauthorized: ignoring, session too fresh (<10s)');
         return;
       }
 
@@ -115,17 +115,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       const doRefresh = async () => {
         try {
-          console.log('[Auth] onUnauthorized: attempting token refresh');
+          if (__DEV__) console.log('[Auth] onUnauthorized: attempting token refresh');
           const { data, error } = await supabase.auth.refreshSession();
           if (error) {
-            console.log('[Auth] onUnauthorized: refresh failed, signing out');
+            if (__DEV__) console.log('[Auth] onUnauthorized: refresh failed, signing out');
             await handleSignOut();
           } else {
-            console.log('[Auth] onUnauthorized: refresh succeeded');
+            if (__DEV__) console.log('[Auth] onUnauthorized: refresh succeeded');
           }
           // If refresh succeeded, Supabase's onAuthStateChange will update the token
         } catch (e) {
-          console.log('[Auth] onUnauthorized: refresh threw, signing out');
+          if (__DEV__) console.log('[Auth] onUnauthorized: refresh threw, signing out');
           handleSignOut().catch(() => {});
         } finally {
           refreshPromiseRef.current = null;
@@ -139,25 +139,40 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     // Restore existing session on startup
-    supabase.auth.getSession().then(({ data: { session: existingSession } }) => {
+    supabase.auth.getSession().then(async ({ data: { session: existingSession } }) => {
       if (existingSession) {
-        setSession(existingSession);
         if (existingSession.access_token) {
+          // Validate session server-side before trusting local state.
+          // Catches revoked sessions (admin sign-out, password change on another device).
+          const { data: { user: validatedUser }, error: validateError } =
+            await supabase.auth.getUser(existingSession.access_token);
+          if (validateError || !validatedUser) {
+            if (__DEV__) console.log('[Auth] session restore: server rejected token, clearing');
+            apiClient.setToken(null);
+            await secureStorage.clearAll().catch(() => {});
+            return;
+          }
+
+          setSession(existingSession);
           sessionTimestampRef.current = Date.now();
           // Set in-memory token first (reliable), then persist to SecureStore (best-effort)
           apiClient.setToken(existingSession.access_token);
           fetchUser().catch(() => {});
+        } else {
+          setSession(existingSession);
         }
       }
+      // Clean up orphaned audio recordings from prior crashes
+      cleanupAudioCache().catch(() => {});
     }).catch((error) => {
-      console.error('[Auth] Failed to restore session:', error);
+      if (__DEV__) console.error('[Auth] Failed to restore session:', error);
     }).finally(() => {
       setIsLoading(false);
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, newSession) => {
-        console.log('[Auth] onAuthStateChange:', event,
+        if (__DEV__) console.log('[Auth] onAuthStateChange:', event,
           'hasToken:', !!newSession?.access_token,
           'expires_at:', newSession?.expires_at);
 
@@ -169,22 +184,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
           if (newSession?.access_token) {
             sessionTimestampRef.current = Date.now();
-            console.log('[Auth] session established, storing token');
+            if (__DEV__) console.log('[Auth] session established, storing token');
             // Set in-memory token immediately (reliable), then persist (best-effort)
             apiClient.setToken(newSession.access_token);
             if (newSession.refresh_token) {
               await secureStorage.setRefreshToken(newSession.refresh_token);
             }
             await fetchUser();
-            console.log('[Auth] sign-in flow complete');
+            if (__DEV__) console.log('[Auth] sign-in flow complete');
           } else {
-            console.log('[Auth] no access_token, clearing session');
+            if (__DEV__) console.log('[Auth] no access_token, clearing session');
             apiClient.setToken(null);
             await secureStorage.clearAll();
             setUser(null);
           }
         } catch (error) {
-          console.error('[Auth] onAuthStateChange error:', error);
+          if (__DEV__) console.error('[Auth] onAuthStateChange error:', error);
         } finally {
           setIsLoading(false);
         }
@@ -197,10 +212,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [fetchUser]);
 
   const signIn = useCallback(async (email: string, password: string) => {
-    console.log('[Auth] signIn: attempting for', email);
+    if (__DEV__) console.log('[Auth] signIn: attempting for', email);
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) {
-      console.error('[Auth] signIn failed:', error.message, error.status);
+      if (__DEV__) console.error('[Auth] signIn failed:', error.message, error.status);
 
       if (error.message?.includes('Email not confirmed')) {
         return { error: 'Please confirm your email address before signing in.' };
@@ -214,14 +229,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
       return { error: 'Invalid email or password' };
     }
-    console.log('[Auth] signIn: success');
+    if (__DEV__) console.log('[Auth] signIn: success');
     return { error: null };
   }, []);
 
   const tokenExpired = isTokenExpired(session?.expires_at);
   const isAuthenticated = !!session?.access_token && !tokenExpired;
-  // Log every auth state computation to trace the sign-out
-  if (session?.access_token) {
+  if (__DEV__ && session?.access_token) {
     console.log('[Auth] isAuthenticated:', isAuthenticated,
       'hasToken:', true, 'tokenExpired:', tokenExpired,
       'expires_at:', session.expires_at, 'user:', !!user);

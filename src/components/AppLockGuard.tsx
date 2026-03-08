@@ -32,7 +32,7 @@ export function AppLockGuard({ children }: AppLockGuardProps) {
           text: 'Sign Out',
           style: 'destructive',
           onPress: () => {
-            signOut().then(() => setIsLocked(false)).catch(() => {});
+            signOut().then(() => setIsLocked(false)).catch(() => { setIsLocked(false); });
           },
         },
       ]
@@ -49,7 +49,7 @@ export function AppLockGuard({ children }: AppLockGuardProps) {
         setIsLocked(false);
       }
     } catch (error) {
-      console.error('[AppLockGuard] attemptUnlock failed:', error);
+      if (__DEV__) console.error('[AppLockGuard] attemptUnlock failed:', error);
     } finally {
       isAuthenticatingRef.current = false;
       setIsAuthenticating(false);
@@ -95,7 +95,7 @@ export function AppLockGuard({ children }: AppLockGuardProps) {
             }
           }
         } catch (error) {
-          console.error('[AppLockGuard] handleAppStateChange error:', error);
+          if (__DEV__) console.error('[AppLockGuard] handleAppStateChange error:', error);
           isAuthenticatingRef.current = false;
           setIsAuthenticating(false);
         }

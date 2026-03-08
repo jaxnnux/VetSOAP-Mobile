@@ -14,6 +14,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
       },
     ],
     'expo-secure-store',
+    'expo-screen-capture',
     [
       'expo-local-authentication',
       {

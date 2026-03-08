@@ -9,7 +9,7 @@ import { AppLockGuard } from '../../src/components/AppLockGuard';
 export default function AppLayout() {
   const { isAuthenticated, isLoading } = useAuth();
 
-  console.log('[AppLayout] render: isLoading=', isLoading, 'isAuthenticated=', isAuthenticated);
+  if (__DEV__) console.log('[AppLayout] render: isLoading=', isLoading, 'isAuthenticated=', isAuthenticated);
 
   if (isLoading) {
     return (
@@ -20,7 +20,7 @@ export default function AppLayout() {
   }
 
   if (!isAuthenticated) {
-    console.log('[AppLayout] REDIRECTING to login — isAuthenticated is false');
+    if (__DEV__) console.log('[AppLayout] REDIRECTING to login — isAuthenticated is false');
     return <Redirect href="/(auth)/login" />;
   }
 

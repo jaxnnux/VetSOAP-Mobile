@@ -86,7 +86,7 @@ export class ApiClient {
     try {
       validateRequestUrl(url);
 
-      console.log('[ApiClient]', method, path, 'hasToken:', !!authHeaders.Authorization);
+      if (__DEV__) console.log('[ApiClient]', method, path, 'hasToken:', !!authHeaders.Authorization);
       const response = await fetch(url, {
         method,
         headers: {
@@ -99,7 +99,7 @@ export class ApiClient {
         signal: controller.signal,
       });
 
-      console.log('[ApiClient]', method, path, 'status:', response.status);
+      if (__DEV__) console.log('[ApiClient]', method, path, 'status:', response.status);
       return response;
     } finally {
       clearTimeout(timeout);
@@ -143,7 +143,7 @@ export class ApiClient {
 
       // If the token changed after refresh, retry the request once
       if (newToken && newToken !== oldToken) {
-        console.log('[ApiClient]', method, path, 'retrying after token refresh');
+        if (__DEV__) console.log('[ApiClient]', method, path, 'retrying after token refresh');
         response = await this.doFetch(url, method, path, serializedBody, timeoutMs);
       }
     }

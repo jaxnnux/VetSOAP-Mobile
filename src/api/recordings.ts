@@ -21,6 +21,14 @@ import { validateUploadUrl } from '../lib/sslPinning';
 
 const UPLOAD_TIMEOUT_MS = 300000; // 5 minutes for R2 uploads
 const MAX_FILE_SIZE_BYTES = 500 * 1024 * 1024; // 500 MB
+const ALLOWED_AUDIO_TYPES = new Set([
+  'audio/mp4',
+  'audio/x-m4a',
+  'audio/aac',
+  'audio/mpeg',
+  'audio/wav',
+  'audio/webm',
+]);
 
 export interface ListRecordingsParams {
   page?: number;
@@ -62,6 +70,9 @@ export const recordingsApi = {
     fileSizeBytes?: number
   ): Promise<UploadUrlResponse> {
     recordingIdSchema.parse(recordingId);
+    if (!ALLOWED_AUDIO_TYPES.has(contentType)) {
+      throw new Error(`Unsupported audio format: ${contentType}`);
+    }
     return apiClient.post(`/api/recordings/${recordingId}/upload-url`, {
       fileName,
       contentType,

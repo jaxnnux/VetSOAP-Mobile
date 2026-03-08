@@ -1,9 +1,10 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useEffect } from 'react';
 import { View, Text, ScrollView, Pressable, Alert, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Animated, { FadeIn, FadeInUp, ZoomIn } from 'react-native-reanimated';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import * as ScreenCapture from 'expo-screen-capture';
 import { ChevronLeft, RotateCcw, Check } from 'lucide-react-native';
 import { recordingsApi } from '../../../src/api/recordings';
 import { ApiError } from '../../../src/api/client';
@@ -123,6 +124,14 @@ export default function RecordingDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const queryClient = useQueryClient();
+
+  // Prevent screenshots/screen recording on PHI screens
+  useEffect(() => {
+    ScreenCapture.preventScreenCaptureAsync('recording-detail').catch(() => {});
+    return () => {
+      ScreenCapture.allowScreenCaptureAsync('recording-detail').catch(() => {});
+    };
+  }, []);
 
   const { data: recording, isLoading, isError, error, refetch: refetchRecording, isRefetching: isRefetchingRecording } = useQuery({
     queryKey: ['recording', id],
