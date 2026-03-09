@@ -6,6 +6,8 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import * as ScreenCapture from 'expo-screen-capture';
 import { ChevronLeft, RotateCcw, Check } from 'lucide-react-native';
+import { useResponsive } from '../../../src/hooks/useResponsive';
+import { CONTENT_MAX_WIDTH } from '../../../src/components/ui/ScreenContainer';
 import { recordingsApi } from '../../../src/api/recordings';
 import { ApiError } from '../../../src/api/client';
 import { StatusBadge } from '../../../src/components/StatusBadge';
@@ -124,6 +126,7 @@ export default function RecordingDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const queryClient = useQueryClient();
+  const { iconMd } = useResponsive();
 
   // Prevent screenshots/screen recording on PHI screens
   useEffect(() => {
@@ -228,7 +231,7 @@ export default function RecordingDetailScreen() {
           />
         }
       >
-        <View style={{ width: '100%', maxWidth: 640, alignSelf: 'center' }}>
+        <View style={{ width: '100%', maxWidth: CONTENT_MAX_WIDTH, alignSelf: 'center' }}>
         {/* Header */}
         <View className="flex-row items-center px-5 pt-5">
           <Pressable
@@ -237,7 +240,7 @@ export default function RecordingDetailScreen() {
             accessibilityLabel="Go back"
             className="mr-3 w-11 h-11 items-center justify-center"
           >
-            <ChevronLeft color="#1c1917" size={24} />
+            <ChevronLeft color="#1c1917" size={iconMd} />
           </Pressable>
           <View className="flex-1">
             <Text className="text-title font-bold text-stone-900">

@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import Animated, { FadeInDown, FadeInUp, FadeIn } from 'react-native-reanimated';
 import { AlertCircle } from 'lucide-react-native';
 import { useAuth } from '../../src/hooks/useAuth';
+import { useResponsive } from '../../src/hooks/useResponsive';
 import { TextInputField } from '../../src/components/ui/TextInputField';
 import { Button } from '../../src/components/ui/Button';
 import { emailSchema, passwordSchema } from '../../src/lib/validation';
@@ -13,6 +14,7 @@ const LOCKOUT_DURATION_MS = 60_000; // 1 minute
 
 export default function LoginScreen() {
   const { signIn } = useAuth();
+  const { width, scale } = useResponsive();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -74,12 +76,12 @@ export default function LoginScreen() {
         className="flex-1 justify-center px-6"
         style={{ alignItems: 'center' }}
       >
-        <View style={{ width: '100%', maxWidth: 400 }}>
+        <View style={{ width: '100%', maxWidth: scale(400) }}>
         {/* Logo / Brand */}
         <Animated.View entering={FadeInDown.duration(500)} className="items-center mb-10">
           <Image
             source={require('../../assets/logo-wordmark.png')}
-            style={{ width: 240, aspectRatio: 600 / 139 }}
+            style={{ width: Math.min(width * 0.55, 280), aspectRatio: 600 / 139 }}
             resizeMode="contain"
             accessibilityLabel="Captivet"
           />

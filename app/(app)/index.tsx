@@ -12,6 +12,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Mic, ChevronRight, FileText, Settings } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import { useAuth } from '../../src/hooks/useAuth';
+import { useResponsive } from '../../src/hooks/useResponsive';
 import { recordingsApi } from '../../src/api/recordings';
 import { RecordingCard } from '../../src/components/RecordingCard';
 import { ScreenContainer } from '../../src/components/ui/ScreenContainer';
@@ -23,6 +24,7 @@ const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 export default function HomeScreen() {
   const router = useRouter();
   const { user } = useAuth();
+  const { iconMd, iconLg } = useResponsive();
   const ctaScale = useSharedValue(1);
 
   const { data, isLoading, refetch, isRefetching } = useQuery({
@@ -71,7 +73,7 @@ export default function HomeScreen() {
           className="p-2 -mr-2 mt-0.5"
           hitSlop={8}
         >
-          <Settings color="#78716c" size={24} />
+          <Settings color="#78716c" size={iconMd} />
         </Pressable>
       </Animated.View>
 
@@ -93,7 +95,7 @@ export default function HomeScreen() {
         style={ctaAnimStyle}
       >
         <View className="w-12 h-12 rounded-full bg-white/20 justify-center items-center mr-4">
-          <Mic color="#fff" size={24} />
+          <Mic color="#fff" size={iconMd} />
         </View>
         <View className="flex-1">
           <Text className="text-white text-heading font-bold">
@@ -103,7 +105,7 @@ export default function HomeScreen() {
             Start recording a new appointment
           </Text>
         </View>
-        <ChevronRight color="rgba(255,255,255,0.6)" size={24} />
+        <ChevronRight color="rgba(255,255,255,0.6)" size={iconMd} />
       </AnimatedPressable>
 
       {/* Stats */}
@@ -145,7 +147,7 @@ export default function HomeScreen() {
           </View>
         ) : recordings.length === 0 ? (
           <Card className="items-center py-6">
-            <FileText color="#a8a29e" size={48} />
+            <FileText color="#a8a29e" size={iconLg} />
             <Text className="text-body text-stone-500 mt-3 text-center">
               No recordings yet. Tap "Record Appointment" to get started.
             </Text>

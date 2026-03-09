@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { View, useWindowDimensions } from 'react-native';
+import { View } from 'react-native';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -9,9 +9,9 @@ import Animated, {
   Easing,
   cancelAnimation,
 } from 'react-native-reanimated';
+import { useResponsive } from '../hooks/useResponsive';
 
 const MIN_HEIGHT = 4;
-const TABLET_BREAKPOINT = 600;
 
 interface AudioWaveformProps {
   isActive: boolean;
@@ -65,8 +65,7 @@ function WaveBar({ index, isActive, isPaused, barWidth, barGap, maxHeight }: Wav
 }
 
 export function AudioWaveform({ isActive, isPaused }: AudioWaveformProps) {
-  const { width } = useWindowDimensions();
-  const isWide = width >= TABLET_BREAKPOINT;
+  const { isTablet: isWide } = useResponsive();
   const barCount = isWide ? 36 : 24;
   const barWidth = isWide ? 4 : 3;
   const barGap = isWide ? 3 : 2;

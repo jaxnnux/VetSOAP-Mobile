@@ -16,6 +16,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Mic } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import { useAudioRecorder } from '../../src/hooks/useAudioRecorder';
+import { useResponsive } from '../../src/hooks/useResponsive';
 import { useTemplates } from '../../src/hooks/useTemplates';
 import { recordingsApi } from '../../src/api/recordings';
 import { ApiError } from '../../src/api/client';
@@ -78,6 +79,7 @@ export default function RecordScreen() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const recorder = useAudioRecorder();
+  const { scale } = useResponsive();
   const { templates, defaultTemplate, isLoading: templatesLoading } = useTemplates();
   const recordBtnScale = useSharedValue(1);
 
@@ -295,12 +297,12 @@ export default function RecordScreen() {
                 disabled={!canStartRecording}
                 accessibilityRole="button"
                 accessibilityLabel={!hasRequiredFields ? 'Enter patient name, client name, and species first' : 'Start recording'}
-                className={`w-20 h-20 rounded-full justify-center items-center ${
+                className={`rounded-full justify-center items-center ${
                   canStartRecording ? 'bg-brand-500' : 'bg-stone-300'
                 }`}
-                style={recordBtnAnimStyle}
+                style={[{ width: scale(80), height: scale(80) }, recordBtnAnimStyle]}
               >
-                <Mic color="#fff" size={32} />
+                <Mic color="#fff" size={scale(32)} />
               </AnimatedPressable>
             </Animated.View>
           )}

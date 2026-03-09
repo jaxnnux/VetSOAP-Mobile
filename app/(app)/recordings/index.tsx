@@ -6,6 +6,8 @@ import { useInfiniteQuery } from '@tanstack/react-query';
 import Animated, { FadeInRight } from 'react-native-reanimated';
 import { Search } from 'lucide-react-native';
 import { recordingsApi } from '../../../src/api/recordings';
+import { useResponsive } from '../../../src/hooks/useResponsive';
+import { CONTENT_MAX_WIDTH } from '../../../src/components/ui/ScreenContainer';
 import { RecordingCard } from '../../../src/components/RecordingCard';
 import { SkeletonCard } from '../../../src/components/ui/Skeleton';
 import { Button } from '../../../src/components/ui/Button';
@@ -14,6 +16,7 @@ const PAGE_SIZE = 20;
 
 export default function RecordingsListScreen() {
   const router = useRouter();
+  const { iconSm, iconLg } = useResponsive();
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [isFocused, setIsFocused] = useState(false);
@@ -62,7 +65,7 @@ export default function RecordingsListScreen() {
 
   return (
     <SafeAreaView className="screen" style={{ alignItems: 'center' }}>
-      <View style={{ flex: 1, width: '100%', maxWidth: 640 }}>
+      <View style={{ flex: 1, width: '100%', maxWidth: CONTENT_MAX_WIDTH }}>
       <View className="px-5 pt-5 pb-0">
         <Text
           className="text-display font-bold text-stone-900 mb-4"
@@ -77,7 +80,7 @@ export default function RecordingsListScreen() {
             isFocused ? 'border-brand-500' : 'border-stone-300'
           }`}
         >
-          <Search color="#a8a29e" size={18} />
+          <Search color="#a8a29e" size={iconSm} />
           <TextInput
             value={search}
             onChangeText={setSearch}
@@ -130,7 +133,7 @@ export default function RecordingsListScreen() {
             </View>
           ) : (
             <View className="py-10 items-center">
-              <Search color="#a8a29e" size={48} />
+              <Search color="#a8a29e" size={iconLg} />
               <Text className="text-body text-stone-500 mt-3 text-center">
                 {search ? 'No recordings match your search.' : 'No recordings yet.'}
               </Text>
