@@ -19,7 +19,7 @@
     },
     "preview": {
       "distribution": "internal",
-      "credentialsSource": "local",
+      "credentialsSource": "remote",
       "env": {
         "APP_VARIANT": "preview"
       },

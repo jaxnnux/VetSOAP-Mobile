@@ -1,5 +1,15 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
-import { Audio } from 'expo-av';
+import { Alert } from 'react-native';
+import {
+  useAudioRecorder as useExpoAudioRecorder,
+  useAudioRecorderState,
+  setAudioModeAsync,
+  requestRecordingPermissionsAsync,
+  AudioQuality,
+  IOSOutputFormat,
+  type RecordingOptions,
+  type RecordingStatus,
+} from 'expo-audio';
 import * as FileSystem from 'expo-file-system';
 
 export type RecordingState = 'idle' | 'recording' | 'paused' | 'stopped';
@@ -7,6 +17,7 @@ export type RecordingState = 'idle' | 'recording' | 'paused' | 'stopped';
 export interface UseAudioRecorderReturn {
   state: RecordingState;
   duration: number;
+  metering: number;
   audioUri: string | null;
   mimeType: string;
   start: () => Promise<void>;
@@ -18,179 +29,158 @@ export interface UseAudioRecorderReturn {
   permissionGranted: boolean;
 }
 
-const RECORDING_OPTIONS: Audio.RecordingOptions = {
+const RECORDING_OPTIONS: RecordingOptions = {
+  isMeteringEnabled: true,
+  extension: '.m4a',
+  sampleRate: 44100,
+  numberOfChannels: 2,
+  bitRate: 256000,
   android: {
-    extension: '.m4a',
-    outputFormat: Audio.AndroidOutputFormat.MPEG_4,
-    audioEncoder: Audio.AndroidAudioEncoder.AAC,
-    sampleRate: 44100,
-    numberOfChannels: 1,
-    bitRate: 128000,
+    outputFormat: 'mpeg4',
+    audioEncoder: 'aac',
+    audioSource: 'voice_recognition',
   },
   ios: {
-    extension: '.m4a',
-    audioQuality: Audio.IOSAudioQuality.HIGH,
-    sampleRate: 44100,
-    numberOfChannels: 1,
-    bitRate: 128000,
-    outputFormat: Audio.IOSOutputFormat.MPEG4AAC,
+    audioQuality: AudioQuality.MAX,
+    outputFormat: IOSOutputFormat.MPEG4AAC,
+    bitRateStrategy: 0, // CONSTANT — consistent bitrate throughout recording
+    linearPCMBitDepth: 16,
+    linearPCMIsBigEndian: false,
+    linearPCMIsFloat: false,
   },
   web: {
     mimeType: 'audio/webm;codecs=opus',
-    bitsPerSecond: 128000,
+    bitsPerSecond: 256000,
   },
 };
 
 export function useAudioRecorder(): UseAudioRecorderReturn {
   const [state, setState] = useState<RecordingState>('idle');
-  const [duration, setDuration] = useState(0);
   const [audioUri, setAudioUri] = useState<string | null>(null);
   const [permissionGranted, setPermissionGranted] = useState(false);
 
-  const recordingRef = useRef<Audio.Recording | null>(null);
   const stoppingRef = useRef(false);
+  const isStartingRef = useRef(false);
+  const mediaResetAlertedRef = useRef(false);
+
+  // Status listener for recording events (errors, media reset)
+  const statusListener = useCallback((status: RecordingStatus) => {
+    if (status.mediaServicesDidReset && !mediaResetAlertedRef.current) {
+      mediaResetAlertedRef.current = true;
+      Alert.alert(
+        'Recording Interrupted',
+        'The audio input was lost (e.g. headphones disconnected). Please stop and start a new recording.'
+      );
+    }
+    if (status.hasError) {
+      console.error('[AudioRecorder] Recording error:', status.error);
+    }
+  }, []);
+
+  // Create the expo-audio recorder (auto-released on unmount)
+  const recorder = useExpoAudioRecorder(RECORDING_OPTIONS, statusListener);
+
+  // Poll for status (duration, metering) at 250ms intervals
+  const recorderState = useAudioRecorderState(recorder, 250);
 
   // Request permissions on mount
   useEffect(() => {
-    Audio.requestPermissionsAsync().then(({ granted }) => {
+    requestRecordingPermissionsAsync().then(({ granted }) => {
       setPermissionGranted(granted);
     }).catch(() => {});
   }, []);
-
-  const isStartingRef = useRef(false);
 
   const start = useCallback(async () => {
     if (isStartingRef.current || state !== 'idle') return;
     isStartingRef.current = true;
     try {
-    if (!permissionGranted) {
-      const { granted } = await Audio.requestPermissionsAsync();
-      if (!granted) {
-        throw new Error('Microphone permission not granted');
-      }
-      setPermissionGranted(true);
-    }
-
-    await Audio.setAudioModeAsync({
-      allowsRecordingIOS: true,
-      playsInSilentModeIOS: true,
-    });
-
-    const recording = new Audio.Recording();
-    try {
-      await recording.prepareToRecordAsync(RECORDING_OPTIONS);
-
-      recording.setOnRecordingStatusUpdate((status) => {
-        if (status.isRecording && status.durationMillis) {
-          setDuration(Math.floor(status.durationMillis / 1000));
+      if (!permissionGranted) {
+        const { granted } = await requestRecordingPermissionsAsync();
+        if (!granted) {
+          throw new Error('Microphone permission not granted');
         }
+        setPermissionGranted(true);
+      }
+
+      await setAudioModeAsync({
+        allowsRecording: true,
+        playsInSilentMode: true,
+        shouldPlayInBackground: true,
+        allowsBackgroundRecording: true,
+        interruptionMode: 'doNotMix',
+        shouldRouteThroughEarpiece: false,
       });
 
-      await recording.startAsync();
-    } catch (error) {
-      // Clean up the partially-initialized recording to avoid a zombie object
-      recording.setOnRecordingStatusUpdate(null);
-      await recording.stopAndUnloadAsync().catch(() => {});
-      throw error;
-    }
-    recordingRef.current = recording;
+      await recorder.prepareToRecordAsync();
+      recorder.record();
 
-    setState('recording');
-    setDuration(0);
-    setAudioUri(null);
+      setState('recording');
+      setAudioUri(null);
+      mediaResetAlertedRef.current = false;
     } finally {
       isStartingRef.current = false;
     }
-  }, [permissionGranted, state]);
+  }, [permissionGranted, state, recorder]);
 
   const pause = useCallback(async () => {
-    if (recordingRef.current) {
-      try {
-        await recordingRef.current.pauseAsync();
-        setState('paused');
-      } catch (error) {
-        console.error('[AudioRecorder] pauseAsync failed:', error);
-        // Native handle is broken — clean up so user can start fresh
-        recordingRef.current.setOnRecordingStatusUpdate(null);
-        const uri = (() => { try { return recordingRef.current?.getURI() ?? null; } catch { return null; } })();
-        await recordingRef.current.stopAndUnloadAsync().catch(() => {});
-        setAudioUri(uri);
-        recordingRef.current = null;
-        setState('stopped');
-        await Audio.setAudioModeAsync({ allowsRecordingIOS: false }).catch(() => {});
-      }
+    try {
+      recorder.pause();
+      setState('paused');
+    } catch (error) {
+      console.error('[AudioRecorder] pause failed:', error);
+      // Native handle is broken — clean up so user can start fresh
+      try { await recorder.stop(); } catch {}
+      setAudioUri(recorder.uri ?? null);
+      setState('stopped');
+      await setAudioModeAsync({ allowsRecording: false }).catch(() => {});
     }
-  }, []);
+  }, [recorder]);
 
   const resume = useCallback(async () => {
-    if (recordingRef.current) {
-      try {
-        await recordingRef.current.startAsync();
-        setState('recording');
-      } catch (error) {
-        console.error('[AudioRecorder] startAsync (resume) failed:', error);
-        // Native handle is broken — clean up so user can start fresh
-        recordingRef.current.setOnRecordingStatusUpdate(null);
-        const uri = (() => { try { return recordingRef.current?.getURI() ?? null; } catch { return null; } })();
-        await recordingRef.current.stopAndUnloadAsync().catch(() => {});
-        setAudioUri(uri);
-        recordingRef.current = null;
-        setState('stopped');
-        await Audio.setAudioModeAsync({ allowsRecordingIOS: false }).catch(() => {});
-      }
+    try {
+      recorder.record();
+      setState('recording');
+    } catch (error) {
+      console.error('[AudioRecorder] resume failed:', error);
+      // Native handle is broken — clean up so user can start fresh
+      try { await recorder.stop(); } catch {}
+      setAudioUri(recorder.uri ?? null);
+      setState('stopped');
+      await setAudioModeAsync({ allowsRecording: false }).catch(() => {});
     }
-  }, []);
+  }, [recorder]);
 
   const stop = useCallback(async () => {
-    if (recordingRef.current && !stoppingRef.current) {
-      stoppingRef.current = true;
-      recordingRef.current.setOnRecordingStatusUpdate(null);
-      const uri = (() => { try { return recordingRef.current?.getURI() ?? null; } catch { return null; } })();
-      try {
-        await recordingRef.current.stopAndUnloadAsync();
-      } catch (error) {
-        console.error('[AudioRecorder] stopAndUnloadAsync failed:', error);
-      }
-      setAudioUri(uri);
-      recordingRef.current = null;
-      setState('stopped');
-
-      await Audio.setAudioModeAsync({
-        allowsRecordingIOS: false,
-      }).catch(() => {});
+    if (stoppingRef.current) return;
+    stoppingRef.current = true;
+    try {
+      await recorder.stop();
+    } catch (error) {
+      console.error('[AudioRecorder] stop failed:', error);
     }
-  }, []);
+    setAudioUri(recorder.uri ?? null);
+    setState('stopped');
+    stoppingRef.current = false;
+
+    await setAudioModeAsync({
+      allowsRecording: false,
+    }).catch(() => {});
+  }, [recorder]);
 
   const reset = useCallback(() => {
     if (audioUri) {
       FileSystem.deleteAsync(audioUri, { idempotent: true }).catch(() => {});
     }
     setState('idle');
-    setDuration(0);
     setAudioUri(null);
-    recordingRef.current = null;
     stoppingRef.current = false;
+    mediaResetAlertedRef.current = false;
   }, [audioUri]);
-
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => {
-      if (recordingRef.current && !stoppingRef.current) {
-        stoppingRef.current = true;
-        recordingRef.current.setOnRecordingStatusUpdate(null);
-        const uri = (() => { try { return recordingRef.current?.getURI() ?? null; } catch { return null; } })();
-        recordingRef.current.stopAndUnloadAsync().then(() => {
-          if (uri) FileSystem.deleteAsync(uri, { idempotent: true }).catch(() => {});
-        }).catch(() => {
-          if (uri) FileSystem.deleteAsync(uri, { idempotent: true }).catch(() => {});
-        });
-      }
-    };
-  }, []);
 
   return {
     state,
-    duration,
+    duration: Math.floor(recorderState.durationMillis / 1000),
+    metering: recorderState.metering ?? -160,
     audioUri,
     mimeType: 'audio/x-m4a',
     start,

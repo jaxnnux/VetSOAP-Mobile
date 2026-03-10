@@ -7,10 +7,11 @@ export default ({ config }: ConfigContext): ExpoConfig => {
   const plugins: ExpoConfig['plugins'] = [
     'expo-router',
     [
-      'expo-av',
+      'expo-audio',
       {
         microphonePermission:
           'Allow Captivet to access your microphone to record appointments.',
+        enableBackgroundRecording: true,
       },
     ],
     'expo-secure-store',
@@ -84,7 +85,6 @@ export default ({ config }: ConfigContext): ExpoConfig => {
         monochromeImage: './assets/android-icon-monochrome.png',
       },
       permissions: [
-        'android.permission.RECORD_AUDIO',
         'android.permission.USE_BIOMETRIC',
         'android.permission.USE_FINGERPRINT',
       ],

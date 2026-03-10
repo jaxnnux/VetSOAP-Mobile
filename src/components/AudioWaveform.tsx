@@ -1,56 +1,59 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { View } from 'react-native';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
-  withRepeat,
   withTiming,
-  withDelay,
   Easing,
   cancelAnimation,
 } from 'react-native-reanimated';
 import { useResponsive } from '../hooks/useResponsive';
 
 const MIN_HEIGHT = 4;
+const METERING_MIN = -60;
+const METERING_MAX = 0;
 
 interface AudioWaveformProps {
   isActive: boolean;
   isPaused?: boolean;
+  metering?: number;
 }
 
 interface WaveBarProps {
   index: number;
+  barCount: number;
   isActive: boolean;
   isPaused?: boolean;
   barWidth: number;
   barGap: number;
   maxHeight: number;
+  targetHeight: number;
 }
 
-function WaveBar({ index, isActive, isPaused, barWidth, barGap, maxHeight }: WaveBarProps) {
+function WaveBar({ index, barCount, isActive, isPaused, barWidth, barGap, maxHeight, targetHeight }: WaveBarProps) {
   const height = useSharedValue(MIN_HEIGHT);
 
   useEffect(() => {
     if (isActive && !isPaused) {
-      const randomMax = MIN_HEIGHT + Math.random() * (maxHeight - MIN_HEIGHT);
-      const duration = 300 + Math.random() * 400;
+      // Add per-bar variation: bars near center are taller, edges shorter
+      const center = barCount / 2;
+      const distFromCenter = Math.abs(index - center) / center;
+      const variation = 1 - distFromCenter * 0.4;
+      // Add slight randomness so bars don't look identical
+      const jitter = 0.85 + Math.random() * 0.3;
+      const finalHeight = Math.max(MIN_HEIGHT, targetHeight * variation * jitter);
 
-      height.value = withDelay(
-        index * 30,
-        withRepeat(
-          withTiming(randomMax, { duration, easing: Easing.inOut(Easing.ease) }),
-          -1,
-          true
-        )
-      );
+      height.value = withTiming(finalHeight, {
+        duration: 150,
+        easing: Easing.out(Easing.ease),
+      });
     } else if (isPaused) {
-      // Freeze at current value — no-op, just stop animating
       cancelAnimation(height);
     } else {
       height.value = withTiming(MIN_HEIGHT, { duration: 400 });
     }
     return () => { cancelAnimation(height); };
-  }, [isActive, isPaused, maxHeight]);
+  }, [isActive, isPaused, targetHeight, maxHeight]);
 
   const animatedStyle = useAnimatedStyle(() => ({
     height: height.value,
@@ -64,12 +67,17 @@ function WaveBar({ index, isActive, isPaused, barWidth, barGap, maxHeight }: Wav
   );
 }
 
-export function AudioWaveform({ isActive, isPaused }: AudioWaveformProps) {
+export function AudioWaveform({ isActive, isPaused, metering = -160 }: AudioWaveformProps) {
   const { isTablet: isWide } = useResponsive();
   const barCount = isWide ? 36 : 24;
   const barWidth = isWide ? 4 : 3;
   const barGap = isWide ? 3 : 2;
   const maxHeight = isWide ? 48 : 32;
+
+  // Normalize metering from dB range to pixel height
+  const clamped = Math.max(METERING_MIN, Math.min(METERING_MAX, metering));
+  const normalized = (clamped - METERING_MIN) / (METERING_MAX - METERING_MIN);
+  const targetHeight = MIN_HEIGHT + normalized * (maxHeight - MIN_HEIGHT);
 
   return (
     <View
@@ -80,11 +88,13 @@ export function AudioWaveform({ isActive, isPaused }: AudioWaveformProps) {
         <WaveBar
           key={i}
           index={i}
+          barCount={barCount}
           isActive={isActive}
           isPaused={isPaused}
           barWidth={barWidth}
           barGap={barGap}
           maxHeight={maxHeight}
+          targetHeight={targetHeight}
         />
       ))}
     </View>

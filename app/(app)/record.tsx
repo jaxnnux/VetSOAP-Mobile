@@ -291,6 +291,7 @@ export default function RecordScreen() {
         <AudioWaveform
           isActive={isRecording || recorder.state === 'paused'}
           isPaused={recorder.state === 'paused'}
+          metering={recorder.metering}
         />
 
         {/* Timer */}

@@ -99,9 +99,9 @@ try {
 
 `AppState.addEventListener('change', handler)` discards async return values. The handler **must** have an outer try/catch, and `isAuthenticating` state must be reset in a `finally` block. Otherwise a biometric hardware error permanently locks the app with no escape.
 
-### 7. expo-av recording operations can throw at any time
+### 7. expo-audio recording operations can throw at any time
 
-`pauseAsync()`, `startAsync()`, `stopAndUnloadAsync()` throw if the audio session is interrupted (phone call, audio focus lost, permission revoked). Callers in `record.tsx` must `await` these and wrap in try/catch with user-visible error feedback (Alert).
+`pause()`, `record()`, `stop()` throw if the audio session is interrupted (phone call, audio focus lost, permission revoked). Callers in `record.tsx` must wrap in try/catch with user-visible error feedback (Alert). Note: `pause()` and `record()` are synchronous in expo-audio; only `stop()` and `prepareToRecordAsync()` are async.
 
 ### 8. Keep `validateRequestUrl()` inside the try block in `ApiClient.request()`
 
@@ -127,9 +127,9 @@ This applies everywhere including the shared `Button` component (`src/components
 
 ### 11. Audio recorder hook must recover from native failures
 
-`useAudioRecorder` operations (`stop`, `pause`, `resume`) call expo-av methods that can throw at any time. The `stop()` callback wraps `stopAndUnloadAsync()` in try/catch so that hook state (`state`, `audioUri`, `recordingRef`) is always cleaned up even if the native call fails. Without this, a single failure permanently corrupts the hook — subsequent interactions crash.
+`useAudioRecorder` operations (`stop`, `pause`, `resume`) call expo-audio methods that can throw at any time. The `stop()` callback wraps `recorder.stop()` in try/catch so that hook state (`state`, `audioUri`) is always cleaned up even if the native call fails. Without this, a single failure permanently corrupts the hook — subsequent interactions crash.
 
-Additionally, the recording status callback must be deregistered on unmount (`setOnRecordingStatusUpdate(null)`) to prevent `setDuration` from firing after the component unmounts.
+The recorder is created via expo-audio's `useAudioRecorder` hook which auto-releases native resources on unmount. Status polling uses `useAudioRecorderState(recorder, 250)` for duration and metering updates.
 
 ### 12. Validate local file reads before upload
 
@@ -162,7 +162,7 @@ React Query's `refetch()` returns a Promise. `RefreshControl.onRefresh` is typed
 - `src/config.ts` — env var access with graceful fallback. Exports `CONFIG_MISSING` flag.
 - `app/_layout.tsx` — gates entire app on `CONFIG_MISSING` before any providers mount. Root `ErrorBoundary` wraps entire component tree.
 - `src/components/ui/Button.tsx` — shared button with haptic feedback. `Haptics.impactAsync` has `.catch()`. Every button press flows through this component.
-- `src/hooks/useAudioRecorder.ts` — wraps expo-av recording. `stop()` has internal try/catch for state recovery. Status callback deregistered on unmount.
+- `src/hooks/useAudioRecorder.ts` — wraps expo-audio recording. Uses `audioSource: 'voice_recognition'` on Android for optimal speech capture. `stop()` has internal try/catch for state recovery. Recorder auto-released on unmount.
 - `src/auth/AuthProvider.tsx` — `handleSignOut` wraps server call in try/catch so local cleanup always runs. Fire-and-forget promises in session restore have `.catch()`.
 - `src/api/recordings.ts` — `createWithFile()` validates file response and blob size before upload.
 
