@@ -155,6 +155,7 @@ function RecordingSession() {
     breed: '',
     appointmentType: '',
   });
+  const [uploadProgress, setUploadProgress] = useState(0);
 
   // Auto-select default template once templates load
   useEffect(() => {
@@ -171,12 +172,26 @@ function RecordingSession() {
   const uploadMutation = useMutation({
     mutationFn: async () => {
       if (!recorder.audioUri) throw new Error('No recording available');
-      return recordingsApi.createWithFile(formData, recorder.audioUri, recorder.mimeType);
+      setUploadProgress(10);
+      const result = await recordingsApi.createWithFile(
+        formData,
+        recorder.audioUri,
+        recorder.mimeType,
+        {
+          onUploadProgress: ({ percent }) => {
+            // Map R2 upload progress (0-100%) to display range (10-95%)
+            setUploadProgress(Math.round(10 + (percent * 85) / 100));
+          },
+        }
+      );
+      setUploadProgress(100);
+      return result;
     },
     onSuccess: (recording) => {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
       queryClient.invalidateQueries({ queryKey: ['recordings'] });
       recorder.reset();
+      setUploadProgress(0);
       setFormData({
         patientName: '',
         clientName: '',
@@ -188,6 +203,7 @@ function RecordingSession() {
       router.push(`/(app)/recordings/${recording.id}` as `/(app)/recordings/${string}`);
     },
     onError: (error: Error) => {
+      setUploadProgress(0);
       Alert.alert(
         'Upload Failed',
         error.message || 'Failed to process recording. Please try again.'
@@ -431,6 +447,23 @@ function RecordingSession() {
               Your recording is ready. Tap below to upload and generate your SOAP note.
             </Text>
 
+            {uploadMutation.isPending && uploadProgress > 0 && (
+              <View className="mb-4">
+                <View className="flex-row justify-between mb-1.5">
+                  <Text className="text-caption font-medium text-stone-700">
+                    {uploadProgress < 10 ? 'Preparing...' : uploadProgress >= 95 ? 'Processing...' : 'Uploading...'}
+                  </Text>
+                  <Text className="text-caption text-stone-500">{uploadProgress}%</Text>
+                </View>
+                <View className="h-2.5 rounded-full bg-stone-100 overflow-hidden">
+                  <View
+                    className="h-full rounded-full bg-brand-500"
+                    style={{ width: `${uploadProgress}%` }}
+                  />
+                </View>
+              </View>
+            )}
+
             <Button
               variant="primary"
               size="lg"
@@ -439,7 +472,7 @@ function RecordingSession() {
               disabled={!canSubmit}
               accessibilityLabel="Submit and generate SOAP note"
             >
-              Submit & Generate SOAP Note
+              {uploadMutation.isPending ? 'Uploading...' : 'Submit & Generate SOAP Note'}
             </Button>
           </Card>
         </Animated.View>

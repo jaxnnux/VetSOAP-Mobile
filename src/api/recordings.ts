@@ -1,6 +1,6 @@
 import {
   getInfoAsync,
-  uploadAsync,
+  createUploadTask,
   FileSystemUploadType,
 } from 'expo-file-system/legacy';
 import { apiClient } from './client';
@@ -19,7 +19,6 @@ import {
 } from '../lib/validation';
 import { validateUploadUrl } from '../lib/sslPinning';
 
-const UPLOAD_TIMEOUT_MS = 300000; // 5 minutes for R2 uploads
 const MAX_FILE_SIZE_BYTES = 500 * 1024 * 1024; // 500 MB
 const ALLOWED_AUDIO_TYPES = new Set([
   'audio/mp4',
@@ -29,6 +28,12 @@ const ALLOWED_AUDIO_TYPES = new Set([
   'audio/wav',
   'audio/webm',
 ]);
+
+export interface UploadProgressEvent {
+  loaded: number;
+  total: number;
+  percent: number;
+}
 
 export interface ListRecordingsParams {
   page?: number;
@@ -91,7 +96,8 @@ export const recordingsApi = {
   async createWithFile(
     data: CreateRecording,
     fileUri: string,
-    contentType = 'audio/mp4'
+    contentType = 'audio/mp4',
+    options?: { onUploadProgress?: (event: UploadProgressEvent) => void }
   ): Promise<Recording> {
     // Step 1: Create recording record (validates data via this.create)
     const recording = await this.create(data);
@@ -125,15 +131,33 @@ export const recordingsApi = {
       // Validate the presigned upload URL targets a trusted storage domain
       validateUploadUrl(uploadUrl);
 
-      // Step 3: Upload to R2 using uploadAsync (supports file:// URIs)
-      const uploadResult = await uploadAsync(uploadUrl, fileUri, {
-        httpMethod: 'PUT',
-        uploadType: FileSystemUploadType.BINARY_CONTENT,
-        headers: { 'Content-Type': contentType },
-      });
+      // Step 3: Upload to R2 using createUploadTask (supports file:// URIs + progress)
+      const uploadTask = createUploadTask(
+        uploadUrl,
+        fileUri,
+        {
+          httpMethod: 'PUT',
+          uploadType: FileSystemUploadType.BINARY_CONTENT,
+          headers: { 'Content-Type': contentType },
+        },
+        options?.onUploadProgress
+          ? (progress) => {
+              const total = progress.totalBytesExpectedToSend;
+              const loaded = progress.totalBytesSent;
+              options.onUploadProgress!({
+                loaded,
+                total,
+                percent: total > 0 ? Math.round((loaded / total) * 100) : 0,
+              });
+            }
+          : undefined
+      );
 
-      if (uploadResult.status < 200 || uploadResult.status >= 300) {
-        throw new Error(`Upload to storage failed (HTTP ${uploadResult.status}). Please try again.`);
+      const uploadResult = await uploadTask.uploadAsync();
+      if (!uploadResult || uploadResult.status < 200 || uploadResult.status >= 300) {
+        throw new Error(
+          `Upload to storage failed (HTTP ${uploadResult?.status ?? 'unknown'}). Please try again.`
+        );
       }
 
       r2UploadComplete = true;
