@@ -5,7 +5,7 @@ import Animated, { FadeIn, FadeInUp, ZoomIn } from 'react-native-reanimated';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
-import { ChevronLeft, RotateCcw, Check } from 'lucide-react-native';
+import { ChevronLeft, RotateCcw, Check, AlertTriangle } from 'lucide-react-native';
 import { useResponsive } from '../../../src/hooks/useResponsive';
 import { CONTENT_MAX_WIDTH } from '../../../src/components/ui/ScreenContainer';
 import { recordingsApi } from '../../../src/api/recordings';
@@ -309,6 +309,27 @@ export default function RecordingDetailScreen() {
                 >
                   Retry
                 </Button>
+              </View>
+            </Card>
+          </Animated.View>
+        )}
+
+        {/* Transcript Quality Warnings */}
+        {recording.status === 'completed' && recording.qualityWarnings?.length > 0 && (
+          <Animated.View entering={FadeInUp.duration(300)}>
+            <Card className="mx-5 mb-4 border-warning-200">
+              <View className="flex-row items-start">
+                <AlertTriangle color="#d97706" size={18} className="mr-2 mt-0.5" />
+                <View className="flex-1">
+                  <Text className="text-body font-semibold text-warning-700 mb-1">
+                    Transcript Quality Warning
+                  </Text>
+                  {recording.qualityWarnings.map((warning, i) => (
+                    <Text key={i} className="text-body-sm text-warning-600 mb-1">
+                      {warning}
+                    </Text>
+                  ))}
+                </View>
               </View>
             </Card>
           </Animated.View>

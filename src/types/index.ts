@@ -23,6 +23,7 @@ export interface Recording {
   audioFileSizeBytes: number | null;
   transcriptText: string | null;
   transcriptConfidence: number | null;
+  qualityWarnings: string[];
   soapNoteId: string | null;
   errorMessage: string | null;
   errorCode: string | null;
