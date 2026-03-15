@@ -42,7 +42,9 @@ export default function HomeScreen() {
 
   const recordings = data?.data ?? [];
   const totalRecordings = data?.pagination?.total ?? 0;
-  const completedCount = recordings.filter((r) => r.status === 'completed').length;
+  const processingCount = recordings.filter(
+    (r) => !['completed', 'failed'].includes(r.status)
+  ).length;
 
   const ctaAnimStyle = useAnimatedStyle(() => ({
     transform: [{ scale: ctaScale.value }],
@@ -116,11 +118,13 @@ export default function HomeScreen() {
           </Text>
           <Text className="text-caption text-stone-500 mt-0.5">Total Recordings</Text>
         </Card>
-        <Card className="flex-1" accessibilityLabel={`${completedCount} SOAP notes ready`}>
-          <Text className="text-display font-bold text-brand-500">
-            {completedCount}
+        <Card className="flex-1" accessibilityLabel={`${processingCount > 0 ? processingCount + ' processing' : 'All complete'}`}>
+          <Text className={`text-display font-bold ${processingCount > 0 ? 'text-warning-500' : 'text-success-500'}`}>
+            {processingCount > 0 ? processingCount : '\u2713'}
           </Text>
-          <Text className="text-caption text-stone-500 mt-0.5">SOAP Notes Ready</Text>
+          <Text className="text-caption text-stone-500 mt-0.5">
+            {processingCount > 0 ? 'Processing' : 'All Complete'}
+          </Text>
         </Card>
       </Animated.View>
 

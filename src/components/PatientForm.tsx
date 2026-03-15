@@ -12,9 +12,10 @@ interface PatientFormProps {
   onUpdate: (field: keyof CreateRecording, value: string | boolean | undefined) => void;
   templates?: Template[];
   templatesLoading?: boolean;
+  clientNameDisabled?: boolean;
 }
 
-export function PatientForm({ formData, onUpdate, templates, templatesLoading }: PatientFormProps) {
+export function PatientForm({ formData, onUpdate, templates, templatesLoading, clientNameDisabled }: PatientFormProps) {
   const handleTemplateSelect = (template: Template) => {
     Haptics.selectionAsync().catch(() => {});
     const newId = formData.templateId === template.id ? undefined : template.id;
@@ -103,6 +104,7 @@ export function PatientForm({ formData, onUpdate, templates, templatesLoading }:
         maxLength={200}
         autoCorrect={false}
         autoComplete="off"
+        editable={!clientNameDisabled}
       />
 
       <View className="mb-3.5">
