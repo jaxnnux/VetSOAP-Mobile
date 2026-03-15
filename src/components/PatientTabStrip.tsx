@@ -175,17 +175,19 @@ export function PatientTabStrip({ slots, activeIndex, onSelectIndex, onAddPatien
         );
       })}
 
-      {/* Add patient button */}
-      <Animated.View layout={TAB_LAYOUT_TRANSITION}>
-        <Pressable
-          onPress={handleAddPress}
-          accessibilityRole="button"
-          accessibilityLabel="Add patient"
-          className="w-[36px] h-[36px] items-center justify-center rounded-full border border-dashed border-stone-400 bg-white"
-        >
-          <Plus color="#78716c" size={18} />
-        </Pressable>
-      </Animated.View>
+      {/* Add patient button — hidden at max (10) */}
+      {slots.length < 10 && (
+        <Animated.View layout={TAB_LAYOUT_TRANSITION}>
+          <Pressable
+            onPress={handleAddPress}
+            accessibilityRole="button"
+            accessibilityLabel="Add patient"
+            className="w-[36px] h-[36px] items-center justify-center rounded-full border border-dashed border-stone-400 bg-white"
+          >
+            <Plus color="#78716c" size={18} />
+          </Pressable>
+        </Animated.View>
+      )}
     </ScrollView>
   );
 }

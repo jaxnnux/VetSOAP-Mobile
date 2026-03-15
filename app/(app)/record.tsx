@@ -118,6 +118,8 @@ function RecordingSession() {
   const pendingStartSlotRef = useRef<string | null>(null);
   // Ref for startRecordingForSlot to avoid hoisting issues in the effect
   const startRecordingRef = useRef<(slotId: string) => void>(() => {});
+  // Guard: prevent the audio-capture effect from saving twice for the same stop
+  const audioCaptureDoneRef = useRef(false);
 
   // Auto-select default template for first slot once templates load
   useEffect(() => {
@@ -128,7 +130,13 @@ function RecordingSession() {
 
   // Effect: capture audio URI when recorder transitions to stopped while bound to a slot
   useEffect(() => {
-    if (recorder.state === 'stopped' && recorder.audioUri && session.recorderBoundToSlotId) {
+    if (recorder.state !== 'stopped') {
+      // Reset guard when recorder leaves stopped state (e.g. after reset → new recording)
+      audioCaptureDoneRef.current = false;
+      return;
+    }
+    if (recorder.audioUri && session.recorderBoundToSlotId && !audioCaptureDoneRef.current) {
+      audioCaptureDoneRef.current = true;
       saveAudio(session.recorderBoundToSlotId, recorder.audioUri, recorder.duration);
       unbindRecorder();
 
@@ -139,7 +147,7 @@ function RecordingSession() {
         recorder.reset();
         setTimeout(() => {
           startRecordingRef.current(nextSlotId);
-        }, 100);
+        }, 250);
       }
     }
   }, [recorder.state, recorder.audioUri]);
@@ -220,10 +228,10 @@ function RecordingSession() {
 
   const handleStart = useCallback(
     (slotId: string) => {
-      // If another slot is paused, prompt to stop it first
+      // If another slot owns the recorder, prompt to stop it first
       if (session.recorderBoundToSlotId && session.recorderBoundToSlotId !== slotId) {
         const boundSlot = session.slots.find((s) => s.id === session.recorderBoundToSlotId);
-        if (boundSlot && (boundSlot.audioState === 'paused' || recorder.state === 'paused')) {
+        if (boundSlot && ['recording', 'paused'].includes(recorder.state)) {
           Alert.alert(
             'Stop Current Recording?',
             `Stop recording for ${boundSlot.formData.patientName || 'the other patient'} before starting a new one?`,
@@ -342,13 +350,16 @@ function RecordingSession() {
                 FileSystem.deleteAsync(slot.audioUri, { idempotent: true }).catch(() => {});
               }
               clearAudio(slotId);
-              recorder.reset();
+              // Only reset recorder if it's not actively recording another patient
+              if (!session.recorderBoundToSlotId || session.recorderBoundToSlotId === slotId) {
+                recorder.reset();
+              }
             },
           },
         ]
       );
     },
-    [session.slots, clearAudio, recorder]
+    [session.slots, session.recorderBoundToSlotId, clearAudio, recorder]
   );
 
   const handleRemove = useCallback(
@@ -399,7 +410,7 @@ function RecordingSession() {
 
   const uploadSlot = useCallback(
     async (slot: PatientSlot): Promise<boolean> => {
-      if (!slot.audioUri || slot.uploadStatus === 'success') return true;
+      if (!slot.audioUri || slot.uploadStatus === 'success' || slot.uploadStatus === 'uploading') return true;
 
       setUploadStatus(slot.id, 'uploading', { progress: 5 });
       try {

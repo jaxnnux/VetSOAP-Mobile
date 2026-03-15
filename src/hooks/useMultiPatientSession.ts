@@ -29,6 +29,7 @@ function createEmptySlot(defaultTemplateId?: string, clientName = ''): PatientSl
 function sessionReducer(state: SessionState, action: SessionAction): SessionState {
   switch (action.type) {
     case 'ADD_SLOT': {
+      if (state.slots.length >= 10) return state;
       const clientName = state.slots[0]?.formData.clientName ?? '';
       const newSlot = createEmptySlot(action.defaultTemplateId, clientName);
       const newSlots = [...state.slots, newSlot];

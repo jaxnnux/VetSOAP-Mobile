@@ -113,7 +113,7 @@ export function PatientSlotCard({
   const duration = isRecorderOwner ? recorder.duration : slot.audioDuration;
   const metering = isRecorderOwner ? recorder.metering : -160;
 
-  const canStartRecording = hasRequiredFields && !recorderBusy && !isStopped;
+  const canStartRecording = hasRequiredFields && !isStopped;
   const canSubmitSingle = hasRequiredFields && slot.audioUri !== null && slot.uploadStatus !== 'success' && slot.uploadStatus !== 'uploading';
 
   return (
@@ -222,7 +222,7 @@ export function PatientSlotCard({
                   !hasRequiredFields
                     ? 'Enter patient name, client name, and species first'
                     : recorderBusy
-                      ? 'Another patient is being recorded'
+                      ? 'Start recording — will stop current recording first'
                       : 'Start recording'
                 }
                 className={`rounded-full justify-center items-center ${
